@@ -6,11 +6,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, HasRoles;
 
     /**
      * The attributes that are mass assignable.
@@ -21,7 +22,6 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'role',
     ];
 
     /**
@@ -47,13 +47,28 @@ class User extends Authenticatable
         ];
     }
 
-    public function isAdmin(): bool
+    public function isTeacher(): bool
     {
-        return $this->role === 'admin';
+        return $this->hasRole('teacher');
     }
 
-    public function isUser(): bool
+    public function isAdmin(): bool
     {
-        return $this->role === 'user';
+        return $this->hasRole('admin');
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->hasRole('super-admin');
+    }
+
+    public function isAnyAdmin(): bool
+    {
+        return $this->hasAnyRole(['admin', 'super-admin']);
+    }
+
+    public function teacherSubmissions()
+    {
+        return $this->hasMany(TeacherSubmission::class, 'teacher_id');
     }
 }

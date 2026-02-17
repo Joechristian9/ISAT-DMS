@@ -12,6 +12,8 @@ return Application::configure(basePath: dirname(__DIR__))
         then: function () {
             Route::middleware('web')
                 ->group(base_path('routes/admin.php'));
+            Route::middleware('web')
+                ->group(base_path('routes/teacher.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
@@ -22,6 +24,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
+            'super-admin' => \App\Http\Middleware\SuperAdminMiddleware::class,
+            'teacher' => \App\Http\Middleware\TeacherMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

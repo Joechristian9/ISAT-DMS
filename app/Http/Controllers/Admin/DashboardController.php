@@ -13,12 +13,14 @@ class DashboardController extends Controller
     {
         $stats = [
             'total_users' => User::count(),
-            'total_admins' => User::where('role', 'admin')->count(),
-            'regular_users' => User::where('role', 'user')->count(),
+            'total_teachers' => User::role('teacher')->count(),
+            'total_admins' => User::role('admin')->count(),
+            'total_super_admins' => User::role('super-admin')->count(),
         ];
 
         return Inertia::render('Admin/Dashboard', [
             'stats' => $stats,
+            'isSuperAdmin' => auth()->user()->hasRole('super-admin'),
         ]);
     }
 }

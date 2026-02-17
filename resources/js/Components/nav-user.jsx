@@ -8,6 +8,7 @@ import {
   LogOut,
   Sparkles,
 } from "lucide-react"
+import { router } from '@inertiajs/react'
 
 import {
   Avatar,
@@ -34,6 +35,10 @@ export function NavUser({
   user
 }) {
   const { isMobile } = useSidebar()
+
+  const handleLogout = () => {
+    router.post(route('logout'));
+  }
 
   return (
     <SidebarMenu>
@@ -94,7 +99,7 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>
               <LogOut />
               Log out
             </DropdownMenuItem>

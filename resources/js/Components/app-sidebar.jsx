@@ -36,6 +36,10 @@ const data = {
         {
           title: "Dashboard",
           url: route('admin.dashboard'),
+        },
+        {
+          title: "IPCRF Submissions",
+          url: route('admin.ipcrf.submissions'),
         }
       ]
     },
