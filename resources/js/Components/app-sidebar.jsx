@@ -5,6 +5,7 @@ import {
   FileText,
   Settings,
   BarChart3,
+  GraduationCap,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -38,8 +39,16 @@ const data = {
           url: route('admin.dashboard'),
         },
         {
+          title: "Teacher Management",
+          url: route('admin.teachers.index'),
+        },
+        {
           title: "IPCRF Submissions",
           url: route('admin.ipcrf.submissions'),
+        },
+        {
+          title: "Audit Logs",
+          url: route('admin.audit-logs.index'),
         }
       ]
     },

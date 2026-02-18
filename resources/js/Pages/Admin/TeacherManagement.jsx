@@ -1,0 +1,834 @@
+import { AppSidebar } from "@/components/app-sidebar"
+import { Head, router, useForm } from '@inertiajs/react';
+import { useState, useEffect, useRef } from 'react';
+import { toast } from 'sonner';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+} from "@/components/ui/breadcrumb"
+import { Separator } from "@/components/ui/separator"
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
+import { Search, Plus, Edit, Trash2, TrendingUp, History, MoreVertical, Calendar, Award, CheckCircle2, User, Briefcase } from 'lucide-react';
+import { Toaster } from "@/components/ui/sonner"
+
+export default function TeacherManagement({ teachers, positions, filters, flash }) {
+    const [searchTerm, setSearchTerm] = useState(filters.search || '');
+    const [selectedPosition, setSelectedPosition] = useState(filters.position || '');
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+    const [selectedTeacher, setSelectedTeacher] = useState(null);
+    const [openMenuRow, setOpenMenuRow] = useState(null);
+    const [promotionHistory, setPromotionHistory] = useState([]);
+    const menuRef = useRef(null);
+
+    // Close menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (menuRef.current && !menuRef.current.contains(event.target)) {
+                setOpenMenuRow(null);
+            }
+        };
+
+        if (openMenuRow !== null) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [openMenuRow]);
+
+    // Show flash messages as toasts
+    useEffect(() => {
+        if (flash?.success) {
+            toast.success(flash.success);
+        }
+        if (flash?.error) {
+            toast.error(flash.error);
+        }
+    }, [flash]);
+
+    // Form for creating teacher
+    const createForm = useForm({
+        name: '',
+        email: '',
+        password: '',
+        current_position_id: '',
+        division: '',
+        teacher_type: '',
+    });
+
+    // Form for editing teacher
+    const editForm = useForm({
+        name: '',
+        email: '',
+        division: '',
+        teacher_type: '',
+    });
+
+    // Form for promotion
+    const promoteForm = useForm({
+        to_position_id: '',
+        notes: '',
+    });
+
+    // Handle search
+    const handleSearch = () => {
+        router.get(route('admin.teachers.index'), {
+            search: searchTerm,
+            position: selectedPosition,
+        }, {
+            preserveState: true,
+        });
+    };
+
+    // Handle create teacher
+    const handleCreate = (e) => {
+        e.preventDefault();
+        createForm.post(route('admin.teachers.store'), {
+            onSuccess: () => {
+                setIsCreateModalOpen(false);
+                createForm.reset();
+            },
+            onError: () => {
+                toast.error('Failed to create teacher. Please check the form.');
+            },
+        });
+    };
+
+    // Handle edit teacher
+    const handleEdit = (e) => {
+        e.preventDefault();
+        editForm.put(route('admin.teachers.update', selectedTeacher.id), {
+            onSuccess: () => {
+                setIsEditModalOpen(false);
+                editForm.reset();
+                setSelectedTeacher(null);
+            },
+            onError: () => {
+                toast.error('Failed to update teacher. Please check the form.');
+            },
+        });
+    };
+
+    // Handle delete teacher
+    const handleDelete = () => {
+        router.delete(route('admin.teachers.destroy', selectedTeacher.id), {
+            onSuccess: () => {
+                setIsDeleteModalOpen(false);
+                setSelectedTeacher(null);
+            },
+            onError: () => {
+                toast.error('Failed to delete teacher. Please try again.');
+            },
+        });
+    };
+
+    // Handle promote teacher
+    const handlePromote = (e) => {
+        e.preventDefault();
+        promoteForm.post(route('admin.teachers.promote', selectedTeacher.id), {
+            onSuccess: () => {
+                setIsPromoteModalOpen(false);
+                promoteForm.reset();
+                setSelectedTeacher(null);
+            },
+            onError: () => {
+                toast.error('Failed to promote teacher. Please try again.');
+            },
+        });
+    };
+
+    // Open edit modal
+    const openEditModal = (teacher) => {
+        setSelectedTeacher(teacher);
+        editForm.setData({
+            name: teacher.name,
+            email: teacher.email,
+            division: teacher.division || '',
+            teacher_type: teacher.teacher_type || '',
+        });
+        setIsEditModalOpen(true);
+    };
+
+    // Open delete modal
+    const openDeleteModal = (teacher) => {
+        setSelectedTeacher(teacher);
+        setIsDeleteModalOpen(true);
+    };
+
+    // Open promote modal
+    const openPromoteModal = (teacher) => {
+        setSelectedTeacher(teacher);
+        promoteForm.setData({
+            to_position_id: '',
+            notes: '',
+        });
+        setIsPromoteModalOpen(true);
+    };
+
+    // Open history modal
+    const openHistoryModal = (teacher) => {
+        setSelectedTeacher(teacher);
+        // Fetch promotion history
+        fetch(route('admin.teachers.promotions.data', teacher.id))
+            .then(res => res.json())
+            .then(data => {
+                setPromotionHistory(data);
+                setIsHistoryModalOpen(true);
+            })
+            .catch(() => {
+                toast.error('Failed to load promotion history.');
+            });
+    };
+
+    // Get next position name
+    const getNextPosition = (currentPosition) => {
+        if (!currentPosition) return null;
+        const currentOrder = currentPosition.order;
+        const nextPos = positions.find(p => p.order === currentOrder + 1);
+        return nextPos;
+    };
+
+    // Check if teacher can be promoted
+    const canPromote = (teacher) => {
+        if (!teacher.current_position) return false;
+        const maxOrder = Math.max(...positions.map(p => p.order));
+        return teacher.current_position.order < maxOrder;
+    };
+
+    return (
+        <>
+            <Head title="Teacher Management" />
+            <SidebarProvider>
+                <AppSidebar />
+                <SidebarInset>
+                    <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
+                        <div className="flex items-center gap-2 px-4">
+                            <SidebarTrigger className="-ml-1" />
+                            <Separator orientation="vertical" className="mr-2 h-4" />
+                            <Breadcrumb>
+                                <BreadcrumbList>
+                                    <BreadcrumbItem>
+                                        <BreadcrumbPage>Teacher Management</BreadcrumbPage>
+                                    </BreadcrumbItem>
+                                </BreadcrumbList>
+                            </Breadcrumb>
+                        </div>
+                    </header>
+                    
+                    <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+                        {/* Background Logo Watermark */}
+                        <div className="fixed inset-0 pointer-events-none z-0 flex items-center justify-center opacity-20">
+                            <img 
+                                src="/pictures/isat.jpg" 
+                                alt="ISAT Background" 
+                                className="w-[600px] h-[600px] object-contain"
+                            />
+                        </div>
+
+                        {/* Content with higher z-index */}
+                        <div className="relative z-10">
+                            <div className="bg-white rounded-lg shadow p-6">
+                                <h2 className="text-2xl font-semibold mb-6">Teacher Management</h2>
+                                
+                                {/* Search and Filter Section */}
+                                <div className="flex flex-col md:flex-row gap-4 items-end mb-6">
+                            <div className="flex-1">
+                                <Label htmlFor="search">Search by Name</Label>
+                                <div className="flex gap-2">
+                                    <Input
+                                        id="search"
+                                        placeholder="Search teachers..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                                    />
+                                    <Button onClick={handleSearch} className="bg-green-600 hover:bg-green-700">
+                                        <Search className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                            
+                            <div className="w-full md:w-48">
+                                <Label htmlFor="position">Filter by Position</Label>
+                                <Select value={selectedPosition || "all"} onValueChange={(value) => {
+                                    const filterValue = value === "all" ? "" : value;
+                                    setSelectedPosition(filterValue);
+                                    router.get(route('admin.teachers.index'), {
+                                        search: searchTerm,
+                                        position: filterValue,
+                                    }, {
+                                        preserveState: true,
+                                    });
+                                }}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="All Positions" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Positions</SelectItem>
+                                        {positions.map((position) => (
+                                            <SelectItem key={position.id} value={position.id.toString()}>
+                                                {position.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <Button onClick={() => setIsCreateModalOpen(true)} className="bg-green-600 hover:bg-green-700">
+                                <Plus className="h-4 w-4 mr-2" />
+                                Add Teacher
+                            </Button>
+                        </div>
+
+                        {/* Teachers Table */}
+                        <div className="rounded-md border overflow-hidden">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Name</TableHead>
+                                        <TableHead>Email</TableHead>
+                                        <TableHead>Position</TableHead>
+                                        <TableHead>Division</TableHead>
+                                        <TableHead>Type</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {teachers.data.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={6} className="text-center text-muted-foreground">
+                                                No teachers found
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        teachers.data.map((teacher) => (
+                                            <TableRow key={teacher.id}>
+                                                <TableCell className="font-medium">{teacher.name}</TableCell>
+                                                <TableCell>{teacher.email}</TableCell>
+                                                <TableCell>
+                                                    <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-blue-50 text-blue-700">
+                                                        {teacher.current_position?.name || 'No Position'}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell>{teacher.division || '-'}</TableCell>
+                                                <TableCell>{teacher.teacher_type || '-'}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <div className="relative inline-block" ref={openMenuRow === teacher.id ? menuRef : null}>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="h-8 w-8 p-0"
+                                                            onClick={() => setOpenMenuRow(openMenuRow === teacher.id ? null : teacher.id)}
+                                                        >
+                                                            <MoreVertical className="h-4 w-4" />
+                                                        </Button>
+                                                        
+                                                        {/* Dropdown menu that appears on click */}
+                                                        {openMenuRow === teacher.id && (
+                                                            <div className="absolute right-0 top-0 flex flex-row gap-1 bg-white border rounded-md shadow-lg p-1 z-10">
+                                                                <Button
+                                                                    size="sm"
+                                                                    className="bg-green-600 hover:bg-green-700 w-8 h-8 p-0"
+                                                                    onClick={() => {
+                                                                        openPromoteModal(teacher);
+                                                                        setOpenMenuRow(null);
+                                                                    }}
+                                                                    title="Promote"
+                                                                >
+                                                                    <TrendingUp className="h-3 w-3" />
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    className="bg-blue-600 hover:bg-blue-700 w-8 h-8 p-0"
+                                                                    onClick={() => {
+                                                                        openHistoryModal(teacher);
+                                                                        setOpenMenuRow(null);
+                                                                    }}
+                                                                    title="History"
+                                                                >
+                                                                    <History className="h-3 w-3" />
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    className="bg-yellow-600 hover:bg-yellow-700 w-8 h-8 p-0"
+                                                                    onClick={() => {
+                                                                        openEditModal(teacher);
+                                                                        setOpenMenuRow(null);
+                                                                    }}
+                                                                    title="Edit"
+                                                                >
+                                                                    <Edit className="h-3 w-3" />
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="destructive"
+                                                                    className="w-8 h-8 p-0"
+                                                                    onClick={() => {
+                                                                        openDeleteModal(teacher);
+                                                                        setOpenMenuRow(null);
+                                                                    }}
+                                                                    title="Delete"
+                                                                >
+                                                                    <Trash2 className="h-3 w-3" />
+                                                                </Button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+
+                        {/* Pagination */}
+                        {teachers.links.length > 3 && (
+                            <div className="flex justify-center gap-2 mt-4">
+                                {teachers.links.map((link, index) => (
+                                    <Button
+                                        key={index}
+                                        variant={link.active ? "default" : "outline"}
+                                        size="sm"
+                                        disabled={!link.url}
+                                        onClick={() => link.url && router.get(link.url)}
+                                        dangerouslySetInnerHTML={{ __html: link.label }}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+                    {/* Create Teacher Modal */}
+                    <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Add New Teacher</DialogTitle>
+                                <DialogDescription>
+                                    Create a new teacher account with initial position
+                                </DialogDescription>
+                            </DialogHeader>
+                            <form onSubmit={handleCreate}>
+                                <div className="grid gap-4 py-4">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="name">Name</Label>
+                                        <Input
+                                            id="name"
+                                            value={createForm.data.name}
+                                            onChange={(e) => createForm.setData('name', e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="email">Email</Label>
+                                        <Input
+                                            id="email"
+                                            type="email"
+                                            value={createForm.data.email}
+                                            onChange={(e) => createForm.setData('email', e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="password">Password</Label>
+                                        <Input
+                                            id="password"
+                                            type="password"
+                                            value={createForm.data.password}
+                                            onChange={(e) => createForm.setData('password', e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="position">Initial Position</Label>
+                                        <Select
+                                            value={createForm.data.current_position_id}
+                                            onValueChange={(value) => createForm.setData('current_position_id', value)}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select position" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {positions.map((position) => (
+                                                    <SelectItem key={position.id} value={position.id.toString()}>
+                                                        {position.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="division">Division</Label>
+                                        <Input
+                                            id="division"
+                                            value={createForm.data.division}
+                                            onChange={(e) => createForm.setData('division', e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="teacher_type">Teacher Type</Label>
+                                        <Input
+                                            id="teacher_type"
+                                            value={createForm.data.teacher_type}
+                                            onChange={(e) => createForm.setData('teacher_type', e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                                <DialogFooter>
+                                    <Button type="button" variant="outline" onClick={() => setIsCreateModalOpen(false)}>
+                                        Cancel
+                                    </Button>
+                                    <Button type="submit" disabled={createForm.processing} className="bg-green-600 hover:bg-green-700">
+                                        Create Teacher
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+
+                    {/* Edit Teacher Modal */}
+                    <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Edit Teacher</DialogTitle>
+                                <DialogDescription>
+                                    Update teacher information
+                                </DialogDescription>
+                            </DialogHeader>
+                            <form onSubmit={handleEdit}>
+                                <div className="grid gap-4 py-4">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="edit_name">Name</Label>
+                                        <Input
+                                            id="edit_name"
+                                            value={editForm.data.name}
+                                            onChange={(e) => editForm.setData('name', e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="edit_email">Email</Label>
+                                        <Input
+                                            id="edit_email"
+                                            type="email"
+                                            value={editForm.data.email}
+                                            onChange={(e) => editForm.setData('email', e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="edit_division">Division</Label>
+                                        <Input
+                                            id="edit_division"
+                                            value={editForm.data.division}
+                                            onChange={(e) => editForm.setData('division', e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="edit_teacher_type">Teacher Type</Label>
+                                        <Input
+                                            id="edit_teacher_type"
+                                            value={editForm.data.teacher_type}
+                                            onChange={(e) => editForm.setData('teacher_type', e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                                <DialogFooter>
+                                    <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>
+                                        Cancel
+                                    </Button>
+                                    <Button type="submit" disabled={editForm.processing} className="bg-green-600 hover:bg-green-700">
+                                        Update Teacher
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+
+                    {/* Delete Confirmation Modal */}
+                    <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Delete Teacher</DialogTitle>
+                                <DialogDescription>
+                                    Are you sure you want to delete {selectedTeacher?.name}? This action cannot be undone.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)}>
+                                    Cancel
+                                </Button>
+                                <Button variant="destructive" onClick={handleDelete}>
+                                    Delete
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+
+                    {/* Promote Teacher Modal */}
+                    <Dialog open={isPromoteModalOpen} onOpenChange={setIsPromoteModalOpen}>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Promote Teacher</DialogTitle>
+                                <DialogDescription>
+                                    Select the new position for {selectedTeacher?.name}
+                                </DialogDescription>
+                            </DialogHeader>
+                            <form onSubmit={handlePromote}>
+                                <div className="grid gap-4 py-4">
+                                    <div className="grid gap-2">
+                                        <Label>Current Position</Label>
+                                        <Input
+                                            value={selectedTeacher?.current_position?.name || 'No Position'}
+                                            disabled
+                                            className="bg-gray-50"
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="to_position">Promote To</Label>
+                                        <Select
+                                            value={promoteForm.data.to_position_id}
+                                            onValueChange={(value) => promoteForm.setData('to_position_id', value)}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select new position" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {positions.map((position) => (
+                                                    <SelectItem 
+                                                        key={position.id} 
+                                                        value={position.id.toString()}
+                                                        disabled={position.id === selectedTeacher?.current_position_id}
+                                                    >
+                                                        {position.name}
+                                                        {position.id === selectedTeacher?.current_position_id && ' (Current)'}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="notes">Notes (Optional)</Label>
+                                        <Input
+                                            id="notes"
+                                            placeholder="Add any notes about this promotion..."
+                                            value={promoteForm.data.notes}
+                                            onChange={(e) => promoteForm.setData('notes', e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                                <DialogFooter>
+                                    <Button type="button" variant="outline" onClick={() => setIsPromoteModalOpen(false)}>
+                                        Cancel
+                                    </Button>
+                                    <Button type="submit" disabled={promoteForm.processing || !promoteForm.data.to_position_id} className="bg-green-600 hover:bg-green-700">
+                                        Confirm Promotion
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+
+                    {/* Promotion History Modal */}
+                    <Dialog open={isHistoryModalOpen} onOpenChange={setIsHistoryModalOpen}>
+                        <DialogContent className="max-w-2xl bg-gradient-to-br from-green-50 to-white border-2 border-green-200">
+                            <DialogHeader className="border-b border-green-100 pb-3">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center">
+                                        <Award className="h-5 w-5 text-white" />
+                                    </div>
+                                    <div>
+                                        <DialogTitle className="text-xl font-bold text-gray-900">
+                                            Career Progression
+                                        </DialogTitle>
+                                        <DialogDescription className="text-sm text-gray-600">
+                                            {selectedTeacher?.name}'s promotion journey
+                                        </DialogDescription>
+                                    </div>
+                                </div>
+                            </DialogHeader>
+                            
+                            <div className="py-4 space-y-4">
+                                {/* Teacher Info Card */}
+                                <div className="bg-white rounded-lg shadow-sm border border-green-100 p-4">
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        <div className="flex items-start gap-2">
+                                            <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
+                                                <Award className="h-4 w-4 text-green-600" />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Level</p>
+                                                <p className="text-sm font-bold text-green-600 mt-0.5">
+                                                    {selectedTeacher?.current_position?.name || 'None'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-2">
+                                            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                                <TrendingUp className="h-4 w-4 text-blue-600" />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Total</p>
+                                                <p className="text-sm font-bold text-gray-900 mt-0.5">{promotionHistory.length}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-2">
+                                            <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
+                                                <Briefcase className="h-4 w-4 text-purple-600" />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Division</p>
+                                                <p className="text-xs font-semibold text-gray-900 mt-0.5">{selectedTeacher?.division || '-'}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-2">
+                                            <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
+                                                <User className="h-4 w-4 text-orange-600" />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Type</p>
+                                                <p className="text-xs font-semibold text-gray-900 mt-0.5">{selectedTeacher?.teacher_type || '-'}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Promotion Timeline */}
+                                <div className="bg-white rounded-lg shadow-sm border border-green-100 p-4">
+                                    <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                        <History className="h-4 w-4 text-green-600" />
+                                        Promotion Timeline
+                                    </h3>
+                                    
+                                    {promotionHistory.length === 0 ? (
+                                        <div className="text-center py-8">
+                                            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
+                                                <TrendingUp className="h-8 w-8 text-green-600" />
+                                            </div>
+                                            <p className="text-base font-semibold text-gray-900 mb-1">No Promotion History Yet</p>
+                                            <p className="text-xs text-gray-500">This teacher hasn't been promoted yet.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="relative">
+                                            {/* Timeline Line */}
+                                            <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-gradient-to-b from-green-600 to-green-200"></div>
+                                            
+                                            <div className="space-y-4">
+                                                {promotionHistory.slice(0, 5).map((promotion, index) => (
+                                                    <div
+                                                        key={promotion.id}
+                                                        className="relative pl-12 animate-in fade-in slide-in-from-left-4"
+                                                        style={{ animationDelay: `${index * 100}ms` }}
+                                                    >
+                                                        {/* Timeline Dot */}
+                                                        <div className="absolute left-0 w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg border-4 border-white">
+                                                            <CheckCircle2 className="h-5 w-5 text-white" />
+                                                        </div>
+                                                        
+                                                        {/* Content Card */}
+                                                        <div className="bg-gradient-to-br from-green-50 to-white rounded-lg border-2 border-green-200 p-3 hover:shadow-md transition-shadow">
+                                                            <div className="flex items-start justify-between mb-2">
+                                                                <div className="flex-1">
+                                                                    <div className="flex items-center gap-2 mb-2">
+                                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-700 border border-orange-200">
+                                                                            {promotion.from_position?.name || 'Unknown'}
+                                                                        </span>
+                                                                        <TrendingUp className="h-3 w-3 text-green-600" />
+                                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-green-600 text-white border border-green-700">
+                                                                            {promotion.to_position?.name}
+                                                                        </span>
+                                                                    </div>
+                                                                    <p className="text-xs text-gray-600 flex items-center gap-1 mb-1">
+                                                                        <User className="h-3 w-3 text-gray-400" />
+                                                                        By: <span className="font-semibold text-gray-900">{promotion.promoted_by?.name}</span>
+                                                                    </p>
+                                                                    {promotion.notes && (
+                                                                        <p className="text-xs text-gray-600 mt-1 italic bg-white/50 rounded px-2 py-1 border border-green-100">
+                                                                            "{promotion.notes}"
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex items-center gap-1 text-xs text-gray-500 bg-white rounded px-2 py-1 border border-gray-200 ml-2">
+                                                                    <Calendar className="h-3 w-3 text-green-600" />
+                                                                    <span className="font-medium whitespace-nowrap">
+                                                                        {new Date(promotion.promoted_at).toLocaleDateString('en-US', {
+                                                                            year: 'numeric',
+                                                                            month: 'short',
+                                                                            day: 'numeric',
+                                                                        })}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            
+                                            {promotionHistory.length > 5 && (
+                                                <div className="mt-4 text-center">
+                                                    <p className="text-xs text-gray-500 bg-green-50 rounded px-3 py-2 border border-green-200 inline-block">
+                                                        Showing 5 most recent of <span className="font-bold text-green-600">{promotionHistory.length}</span> total
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            
+                            <DialogFooter className="border-t border-green-100 pt-3">
+                                <Button 
+                                    variant="outline" 
+                                    onClick={() => setIsHistoryModalOpen(false)}
+                                    className="border-green-600 text-green-600 hover:bg-green-50"
+                                >
+                                    Close
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                </SidebarInset>
+            </SidebarProvider>
+            <Toaster />
+        </>
+    );
+}

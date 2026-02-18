@@ -22,6 +22,9 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'current_position_id',
+        'division',
+        'teacher_type',
     ];
 
     /**
@@ -70,5 +73,29 @@ class User extends Authenticatable
     public function teacherSubmissions()
     {
         return $this->hasMany(TeacherSubmission::class, 'teacher_id');
+    }
+
+    /**
+     * Get the current position of the teacher
+     */
+    public function currentPosition()
+    {
+        return $this->belongsTo(Position::class, 'current_position_id');
+    }
+
+    /**
+     * Get all promotions for this user
+     */
+    public function promotions()
+    {
+        return $this->hasMany(Promotion::class, 'user_id');
+    }
+
+    /**
+     * Get promotions this user has approved
+     */
+    public function approvedPromotions()
+    {
+        return $this->hasMany(Promotion::class, 'promoted_by');
     }
 }
