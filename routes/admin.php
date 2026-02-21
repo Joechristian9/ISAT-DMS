@@ -13,6 +13,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('/ipcrf', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'index'])->name('ipcrf');
     Route::get('/ipcrf/submissions', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'submissions'])->name('ipcrf.submissions');
     Route::post('/ipcrf/review/{submission}', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'review'])->name('ipcrf.review');
+    Route::post('/ipcrf/rating', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'storeRating'])->name('ipcrf.rating.store');
+    Route::put('/ipcrf/rating/{rating}', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'updateRating'])->name('ipcrf.rating.update');
     Route::post('/ipcrf/kra', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'storeKra'])->name('ipcrf.kra.store');
     Route::put('/ipcrf/kra/{kra}', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'updateKra'])->name('ipcrf.kra.update');
     Route::post('/ipcrf/objective', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'storeObjective'])->name('ipcrf.objective.store');

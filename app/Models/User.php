@@ -76,6 +76,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Get IPCRF ratings for this teacher
+     */
+    public function ipcrfRatings()
+    {
+        return $this->hasMany(IpcrfRating::class, 'teacher_id');
+    }
+
+    /**
      * Get the current position of the teacher
      */
     public function currentPosition()
