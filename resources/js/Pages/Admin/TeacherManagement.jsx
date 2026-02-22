@@ -124,9 +124,14 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
             onSuccess: () => {
                 setIsCreateModalOpen(false);
                 createForm.reset();
+                toast.success('Teacher created successfully!');
             },
-            onError: () => {
-                toast.error('Failed to create teacher. Please check the form.');
+            onError: (errors) => {
+                // Display specific validation errors
+                Object.keys(errors).forEach((field) => {
+                    const errorMessage = Array.isArray(errors[field]) ? errors[field][0] : errors[field];
+                    toast.error(errorMessage);
+                });
             },
         });
     };
@@ -139,9 +144,14 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
                 setIsEditModalOpen(false);
                 editForm.reset();
                 setSelectedTeacher(null);
+                toast.success('Teacher updated successfully!');
             },
-            onError: () => {
-                toast.error('Failed to update teacher. Please check the form.');
+            onError: (errors) => {
+                // Display specific validation errors
+                Object.keys(errors).forEach((field) => {
+                    const errorMessage = Array.isArray(errors[field]) ? errors[field][0] : errors[field];
+                    toast.error(errorMessage);
+                });
             },
         });
     };
@@ -167,9 +177,14 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
                 setIsPromoteModalOpen(false);
                 promoteForm.reset();
                 setSelectedTeacher(null);
+                toast.success('Teacher promoted successfully!');
             },
-            onError: () => {
-                toast.error('Failed to promote teacher. Please try again.');
+            onError: (errors) => {
+                // Display specific validation errors
+                Object.keys(errors).forEach((field) => {
+                    const errorMessage = Array.isArray(errors[field]) ? errors[field][0] : errors[field];
+                    toast.error(errorMessage);
+                });
             },
         });
     };
@@ -466,8 +481,11 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
                                                 onChange={(e) => createForm.setData('name', e.target.value)}
                                                 required
                                                 autoFocus
-                                                className="h-9 text-sm"
+                                                className={`h-9 text-sm ${createForm.errors.name ? 'border-red-500' : ''}`}
                                             />
+                                            {createForm.errors.name && (
+                                                <p className="text-xs text-red-600 mt-1">{createForm.errors.name}</p>
+                                            )}
                                         </div>
                                         <div className="space-y-1">
                                             <Label htmlFor="create_email" className="text-xs">Email *</Label>
@@ -478,8 +496,11 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
                                                 value={createForm.data.email}
                                                 onChange={(e) => createForm.setData('email', e.target.value)}
                                                 required
-                                                className="h-9 text-sm"
+                                                className={`h-9 text-sm ${createForm.errors.email ? 'border-red-500' : ''}`}
                                             />
+                                            {createForm.errors.email && (
+                                                <p className="text-xs text-red-600 mt-1">{createForm.errors.email}</p>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="space-y-1">
@@ -492,8 +513,14 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
                                             onChange={(e) => createForm.setData('password', e.target.value)}
                                             required
                                             minLength={8}
-                                            className="h-9 text-sm"
+                                            className={`h-9 text-sm ${createForm.errors.password ? 'border-red-500' : ''}`}
                                         />
+                                        {createForm.errors.password && (
+                                            <p className="text-xs text-red-600 mt-1">{createForm.errors.password}</p>
+                                        )}
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            Password must be at least 8 characters long
+                                        </p>
                                     </div>
                                     <div className="grid grid-cols-2 gap-3">
                                         <div className="space-y-1">
@@ -502,7 +529,7 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
                                                 value={createForm.data.current_position_id}
                                                 onValueChange={(value) => createForm.setData('current_position_id', value)}
                                             >
-                                                <SelectTrigger className="h-9 text-sm">
+                                                <SelectTrigger className={`h-9 text-sm ${createForm.errors.current_position_id ? 'border-red-500' : ''}`}>
                                                     <SelectValue placeholder="Select" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -513,6 +540,9 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
                                                     ))}
                                                 </SelectContent>
                                             </Select>
+                                            {createForm.errors.current_position_id && (
+                                                <p className="text-xs text-red-600 mt-1">{createForm.errors.current_position_id}</p>
+                                            )}
                                         </div>
                                         <div className="space-y-1">
                                             <Label htmlFor="create_type" className="text-xs">Type</Label>
@@ -521,8 +551,11 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
                                                 placeholder="Full-time"
                                                 value={createForm.data.teacher_type}
                                                 onChange={(e) => createForm.setData('teacher_type', e.target.value)}
-                                                className="h-9 text-sm"
+                                                className={`h-9 text-sm ${createForm.errors.teacher_type ? 'border-red-500' : ''}`}
                                             />
+                                            {createForm.errors.teacher_type && (
+                                                <p className="text-xs text-red-600 mt-1">{createForm.errors.teacher_type}</p>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="space-y-1">
@@ -532,8 +565,11 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
                                             placeholder="Department"
                                             value={createForm.data.division}
                                             onChange={(e) => createForm.setData('division', e.target.value)}
-                                            className="h-9 text-sm"
+                                            className={`h-9 text-sm ${createForm.errors.division ? 'border-red-500' : ''}`}
                                         />
+                                        {createForm.errors.division && (
+                                            <p className="text-xs text-red-600 mt-1">{createForm.errors.division}</p>
+                                        )}
                                     </div>
                                 </div>
                                 
@@ -576,8 +612,11 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
                                                 value={editForm.data.name}
                                                 onChange={(e) => editForm.setData('name', e.target.value)}
                                                 required
-                                                className="h-9 text-sm"
+                                                className={`h-9 text-sm ${editForm.errors.name ? 'border-red-500' : ''}`}
                                             />
+                                            {editForm.errors.name && (
+                                                <p className="text-xs text-red-600 mt-1">{editForm.errors.name}</p>
+                                            )}
                                         </div>
                                         <div className="space-y-1">
                                             <Label htmlFor="edit_email" className="text-xs">Email *</Label>
@@ -587,8 +626,11 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
                                                 value={editForm.data.email}
                                                 onChange={(e) => editForm.setData('email', e.target.value)}
                                                 required
-                                                className="h-9 text-sm"
+                                                className={`h-9 text-sm ${editForm.errors.email ? 'border-red-500' : ''}`}
                                             />
+                                            {editForm.errors.email && (
+                                                <p className="text-xs text-red-600 mt-1">{editForm.errors.email}</p>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-3">
@@ -598,8 +640,11 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
                                                 id="edit_division"
                                                 value={editForm.data.division}
                                                 onChange={(e) => editForm.setData('division', e.target.value)}
-                                                className="h-9 text-sm"
+                                                className={`h-9 text-sm ${editForm.errors.division ? 'border-red-500' : ''}`}
                                             />
+                                            {editForm.errors.division && (
+                                                <p className="text-xs text-red-600 mt-1">{editForm.errors.division}</p>
+                                            )}
                                         </div>
                                         <div className="space-y-1">
                                             <Label htmlFor="edit_teacher_type" className="text-xs">Type</Label>
@@ -607,8 +652,11 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
                                                 id="edit_teacher_type"
                                                 value={editForm.data.teacher_type}
                                                 onChange={(e) => editForm.setData('teacher_type', e.target.value)}
-                                                className="h-9 text-sm"
+                                                className={`h-9 text-sm ${editForm.errors.teacher_type ? 'border-red-500' : ''}`}
                                             />
+                                            {editForm.errors.teacher_type && (
+                                                <p className="text-xs text-red-600 mt-1">{editForm.errors.teacher_type}</p>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -669,7 +717,7 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
                                             value={promoteForm.data.to_position_id}
                                             onValueChange={(value) => promoteForm.setData('to_position_id', value)}
                                         >
-                                            <SelectTrigger className="h-9 text-sm">
+                                            <SelectTrigger className={`h-9 text-sm ${promoteForm.errors.to_position_id ? 'border-red-500' : ''}`}>
                                                 <SelectValue placeholder="Select position" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -685,6 +733,9 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
                                                 ))}
                                             </SelectContent>
                                         </Select>
+                                        {promoteForm.errors.to_position_id && (
+                                            <p className="text-xs text-red-600 mt-1">{promoteForm.errors.to_position_id}</p>
+                                        )}
                                     </div>
                                     <div className="space-y-1">
                                         <Label htmlFor="notes" className="text-xs">Notes</Label>

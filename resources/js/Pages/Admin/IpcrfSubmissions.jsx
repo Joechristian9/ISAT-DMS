@@ -1,6 +1,6 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { Head, router, useForm } from '@inertiajs/react';
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import {
   Breadcrumb,
@@ -47,9 +47,7 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, filte
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
     const [selectedStatus, setSelectedStatus] = useState(filters.status || '');
     const [selectedYear, setSelectedYear] = useState(filters.year || '');
-    const [isAddRatingModalOpen, setIsAddRatingModalOpen] = useState(false);
     const [isViewDetailsModalOpen, setIsViewDetailsModalOpen] = useState(false);
-    const [selectedTeacher, setSelectedTeacher] = useState(null);
     const [selectedRating, setSelectedRating] = useState(null);
     const [expandedRows, setExpandedRows] = useState([]);
 
@@ -63,14 +61,6 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, filte
         }
     }, [flash]);
 
-    // Form for adding rating
-    const ratingForm = useForm({
-        teacher_id: '',
-        rating_period: new Date().getFullYear() + '-' + (new Date().getFullYear() + 1),
-        kra_details: [],
-        remarks: '',
-    });
-
     // Handle search
     const handleSearch = () => {
         router.get(route('admin.ipcrf.submissions'), {
@@ -80,82 +70,6 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, filte
         }, {
             preserveState: true,
         });
-    };
-
-    // Handle add rating
-    const handleAddRating = (e) => {
-        e.preventDefault();
-        
-        // Validate KRA details
-        if (ratingForm.data.kra_details.length === 0) {
-            toast.error('Please add at least one KRA rating');
-            return;
-        }
-
-        ratingForm.post(route('admin.ipcrf.rating.store'), {
-            onSuccess: () => {
-                setIsAddRatingModalOpen(false);
-                ratingForm.reset();
-                setSelectedTeacher(null);
-            },
-            onError: () => {
-                toast.error('Failed to create rating. Please check the form.');
-            },
-        });
-    };
-
-    // Open add rating modal
-    const openAddRatingModal = (teacher) => {
-        setSelectedTeacher(teacher);
-        
-        // Initialize KRA details with empty ratings
-        const kraDetails = kras.map(kra => ({
-            kra_id: kra.id,
-            kra_name: kra.name,
-            objectives: kra.objectives.map(obj => ({
-                objective_id: obj.id,
-                objective_code: obj.code,
-                objective_description: obj.description,
-                rating: 3,
-                score: 0,
-            })),
-            average_rating: 0,
-            score: 0,
-        }));
-
-        ratingForm.setData({
-            teacher_id: teacher.id,
-            rating_period: new Date().getFullYear() + '-' + (new Date().getFullYear() + 1),
-            kra_details: kraDetails,
-            remarks: '',
-        });
-        
-        setIsAddRatingModalOpen(true);
-    };
-
-    // Update objective rating
-    const updateObjectiveRating = (kraIndex, objIndex, rating) => {
-        const newKraDetails = [...ratingForm.data.kra_details];
-        newKraDetails[kraIndex].objectives[objIndex].rating = parseInt(rating);
-        
-        // Calculate score (rating * weight)
-        const weight = kras[kraIndex].objectives[objIndex].weight;
-        newKraDetails[kraIndex].objectives[objIndex].score = (parseInt(rating) * weight) / 5;
-        
-        // Calculate KRA average and score
-        const objectives = newKraDetails[kraIndex].objectives;
-        const totalScore = objectives.reduce((sum, obj) => sum + obj.score, 0);
-        const avgRating = objectives.reduce((sum, obj) => sum + obj.rating, 0) / objectives.length;
-        
-        newKraDetails[kraIndex].score = totalScore;
-        newKraDetails[kraIndex].average_rating = avgRating;
-        
-        ratingForm.setData('kra_details', newKraDetails);
-    };
-
-    // Calculate total score
-    const calculateTotalScore = () => {
-        return ratingForm.data.kra_details.reduce((sum, kra) => sum + kra.score, 0);
     };
 
     // Get status badge color
@@ -317,8 +231,8 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, filte
                                                     const isExpanded = expandedRows.includes(teacher.id);
                                                     
                                                     return (
-                                                        <>
-                                                            <TableRow key={teacher.id}>
+                                                        <React.Fragment key={teacher.id}>
+                                                            <TableRow>
                                                                 <TableCell>
                                                                     {teacher.ipcrf_ratings?.length > 0 && (
                                                                         <Button
@@ -367,7 +281,7 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, filte
                                                                         <Button
                                                                             size="sm"
                                                                             className="bg-green-600 hover:bg-green-700"
-                                                                            onClick={() => openAddRatingModal(teacher)}
+                                                                            onClick={() => router.visit(route('admin.ipcrf.rate', teacher.id))}
                                                                         >
                                                                             <Plus className="h-3 w-3 mr-1" />
                                                                             Rate
@@ -419,7 +333,7 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, filte
                                                                     </TableCell>
                                                                 </TableRow>
                                                             )}
-                                                        </>
+                                                        </React.Fragment>
                                                     );
                                                 })
                                             )}
@@ -447,103 +361,6 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, filte
                     </div>
                 </SidebarInset>
             </SidebarProvider>
-
-            {/* Rate Modal */}
-            <Dialog open={isAddRatingModalOpen} onOpenChange={setIsAddRatingModalOpen}>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>Rate IPCRF - {selectedTeacher?.name}</DialogTitle>
-                        <DialogDescription>
-                            Rate each objective on a scale of 1-5
-                        </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleAddRating}>
-                        <div className="space-y-6 py-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <Label htmlFor="rating_period">Rating Period</Label>
-                                    <Input
-                                        id="rating_period"
-                                        value={ratingForm.data.rating_period}
-                                        onChange={(e) => ratingForm.setData('rating_period', e.target.value)}
-                                        placeholder="e.g., 2024-2025"
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            {/* KRA Ratings */}
-                            {ratingForm.data.kra_details.map((kra, kraIndex) => (
-                                <div key={kra.kra_id} className="border rounded-lg p-4">
-                                    <h3 className="font-semibold text-lg mb-3">{kra.kra_name}</h3>
-                                    <div className="space-y-3">
-                                        {kra.objectives.map((obj, objIndex) => (
-                                            <div key={obj.objective_id} className="flex items-center gap-4 p-2 bg-gray-50 rounded">
-                                                <div className="flex-1">
-                                                    <span className="font-medium text-sm text-blue-600">{obj.objective_code}</span>
-                                                    <p className="text-sm text-gray-600">{obj.objective_description.substring(0, 80)}...</p>
-                                                </div>
-                                                <div className="w-32">
-                                                    <Select
-                                                        value={obj.rating.toString()}
-                                                        onValueChange={(value) => updateObjectiveRating(kraIndex, objIndex, value)}
-                                                    >
-                                                        <SelectTrigger>
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="5">5 - Outstanding</SelectItem>
-                                                            <SelectItem value="4">4 - Very Satisfactory</SelectItem>
-                                                            <SelectItem value="3">3 - Satisfactory</SelectItem>
-                                                            <SelectItem value="2">2 - Unsatisfactory</SelectItem>
-                                                            <SelectItem value="1">1 - Poor</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                                <div className="w-20 text-right">
-                                                    <span className="font-semibold">{obj.score.toFixed(2)}</span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <div className="mt-3 pt-3 border-t flex justify-between items-center">
-                                        <span className="font-semibold">KRA Average:</span>
-                                        <span className="text-lg font-bold text-blue-600">{kra.average_rating.toFixed(2)}</span>
-                                    </div>
-                                </div>
-                            ))}
-
-                            {/* Total Score */}
-                            <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-lg font-semibold">Total Score:</span>
-                                    <span className="text-2xl font-bold text-green-600">{calculateTotalScore().toFixed(2)}</span>
-                                </div>
-                            </div>
-
-                            <div>
-                                <Label htmlFor="remarks">Remarks (Optional)</Label>
-                                <textarea
-                                    id="remarks"
-                                    value={ratingForm.data.remarks}
-                                    onChange={(e) => ratingForm.setData('remarks', e.target.value)}
-                                    rows="3"
-                                    className="w-full rounded-md border border-gray-300 p-2"
-                                    placeholder="Add any remarks or comments..."
-                                />
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setIsAddRatingModalOpen(false)}>
-                                Cancel
-                            </Button>
-                            <Button type="submit" disabled={ratingForm.processing} className="bg-green-600 hover:bg-green-700">
-                                {ratingForm.processing ? 'Saving...' : 'Save Rating'}
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
 
             {/* View Details Modal */}
             <Dialog open={isViewDetailsModalOpen} onOpenChange={setIsViewDetailsModalOpen}>

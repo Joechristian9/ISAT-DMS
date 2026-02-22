@@ -66,6 +66,57 @@ class IpcrfManagementController extends Controller
         ]);
     }
 
+    public function rateTeacher(User $teacher)
+    {
+        // Ensure the user is a teacher
+        if (!$teacher->hasRole('teacher')) {
+            return redirect()->route('admin.ipcrf.submissions')
+                ->with('error', 'Invalid teacher selected.');
+        }
+
+        // Get teacher's IPCRF submissions with related data
+        $submissions = TeacherSubmission::where('teacher_id', $teacher->id)
+            ->with(['objective', 'competency'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return Inertia::render('Admin/RateIpcrfPdf', [
+            'teacher' => $teacher->load('currentPosition'),
+            'submissions' => $submissions,
+            'auth' => [
+                'user' => auth()->user()->load('roles'),
+            ],
+        ]);
+    }
+
+    public function storeSubmissionRatings(Request $request)
+    {
+        $request->validate([
+            'teacher_id' => 'required|exists:users,id',
+            'ratings' => 'required|array',
+            'ratings.*.submission_id' => 'required|exists:teacher_submissions,id',
+            'ratings.*.rating' => 'required|integer|min:1|max:5',
+        ], [
+            'ratings.required' => 'Please provide ratings for all submissions.',
+            'ratings.*.rating.required' => 'Each submission must have a rating.',
+            'ratings.*.rating.min' => 'Rating must be at least 1 star.',
+            'ratings.*.rating.max' => 'Rating cannot exceed 5 stars.',
+        ]);
+
+        // Update each submission with its rating
+        foreach ($request->ratings as $ratingData) {
+            TeacherSubmission::where('id', $ratingData['submission_id'])
+                ->update([
+                    'rating' => $ratingData['rating'],
+                    'status' => 'reviewed',
+                    'reviewed_by' => auth()->id(),
+                    'reviewed_at' => now(),
+                ]);
+        }
+
+        return back()->with('success', 'All ratings submitted successfully!');
+    }
+
     public function storeRating(Request $request)
     {
         $request->validate([

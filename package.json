@@ -35,6 +35,7 @@
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "lucide-react": "^0.564.0",
+        "recharts": "^3.7.0",
         "sonner": "^2.0.7",
         "tailwind-merge": "^3.4.1",
         "tailwindcss-animate": "^1.0.7"

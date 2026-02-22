@@ -58,6 +58,18 @@ class TeacherManagementController extends Controller
             'current_position_id' => 'required|exists:positions,id',
             'division' => 'nullable|string|max:255',
             'teacher_type' => 'nullable|string|max:255',
+        ], [
+            'name.required' => 'Teacher name is required.',
+            'name.max' => 'Teacher name cannot exceed 255 characters.',
+            'email.required' => 'Email address is required.',
+            'email.email' => 'Please provide a valid email address.',
+            'email.unique' => 'This email address is already registered in the system.',
+            'password.required' => 'Password is required.',
+            'password.min' => 'Password must be at least 8 characters long.',
+            'current_position_id.required' => 'Please select a position for the teacher.',
+            'current_position_id.exists' => 'The selected position is invalid.',
+            'division.max' => 'Division name cannot exceed 255 characters.',
+            'teacher_type.max' => 'Teacher type cannot exceed 255 characters.',
         ]);
 
         $teacher = User::create([
@@ -87,6 +99,14 @@ class TeacherManagementController extends Controller
             'email' => 'required|email|unique:users,email,' . $teacher->id,
             'division' => 'nullable|string|max:255',
             'teacher_type' => 'nullable|string|max:255',
+        ], [
+            'name.required' => 'Teacher name is required.',
+            'name.max' => 'Teacher name cannot exceed 255 characters.',
+            'email.required' => 'Email address is required.',
+            'email.email' => 'Please provide a valid email address.',
+            'email.unique' => 'This email address is already registered to another user.',
+            'division.max' => 'Division name cannot exceed 255 characters.',
+            'teacher_type.max' => 'Teacher type cannot exceed 255 characters.',
         ]);
 
         $oldValues = $teacher->only(['name', 'email', 'division', 'teacher_type']);
@@ -124,6 +144,9 @@ class TeacherManagementController extends Controller
         $validated = $request->validate([
             'to_position_id' => 'required|exists:positions,id',
             'notes' => 'nullable|string',
+        ], [
+            'to_position_id.required' => 'Please select a position to promote the teacher to.',
+            'to_position_id.exists' => 'The selected position is invalid.',
         ]);
 
         // Validate teacher has a position

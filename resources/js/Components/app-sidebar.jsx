@@ -47,6 +47,10 @@ const data = {
           url: route('admin.ipcrf.submissions'),
         },
         {
+          title: "IPCRF Configuration",
+          url: route('admin.ipcrf.configuration'),
+        },
+        {
           title: "Audit Logs",
           url: route('admin.audit-logs.index'),
         }

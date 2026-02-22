@@ -4,14 +4,25 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\PendingActionController;
 use App\Http\Controllers\Admin\TeacherManagementController;
 use App\Http\Controllers\Admin\AuditLogController;
+use App\Http\Controllers\Admin\IpcrfConfigurationController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
+    // IPCRF Configuration
+    Route::get('/ipcrf/configuration', [IpcrfConfigurationController::class, 'index'])->name('ipcrf.configuration');
+    Route::post('/ipcrf/configuration', [IpcrfConfigurationController::class, 'store'])->name('ipcrf.configuration.store');
+    Route::put('/ipcrf/configuration/{configuration}', [IpcrfConfigurationController::class, 'update'])->name('ipcrf.configuration.update');
+    Route::delete('/ipcrf/configuration/{configuration}', [IpcrfConfigurationController::class, 'destroy'])->name('ipcrf.configuration.destroy');
+    Route::post('/ipcrf/configuration/{configuration}/toggle-active', [IpcrfConfigurationController::class, 'toggleActive'])->name('ipcrf.configuration.toggle-active');
+    Route::post('/ipcrf/configuration/{configuration}/toggle-lock', [IpcrfConfigurationController::class, 'toggleLock'])->name('ipcrf.configuration.toggle-lock');
+    
     // IPCRF Management
     Route::get('/ipcrf', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'index'])->name('ipcrf');
     Route::get('/ipcrf/submissions', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'submissions'])->name('ipcrf.submissions');
+    Route::get('/ipcrf/rate/{teacher}', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'rateTeacher'])->name('ipcrf.rate');
+    Route::post('/ipcrf/submissions/rate', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'storeSubmissionRatings'])->name('ipcrf.submissions.rate');
     Route::post('/ipcrf/review/{submission}', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'review'])->name('ipcrf.review');
     Route::post('/ipcrf/rating', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'storeRating'])->name('ipcrf.rating.store');
     Route::put('/ipcrf/rating/{rating}', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'updateRating'])->name('ipcrf.rating.update');
