@@ -1,11 +1,14 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
-import { Upload, FileText, Trash2, CheckCircle, Clock } from 'lucide-react';
+import { Upload, FileText, Trash2, X, ZoomIn, ZoomOut, Download } from 'lucide-react';
+import TeacherLayout from '@/Layouts/TeacherLayout';
 
 export default function TeacherIpcrf({ kras, submissions, schoolYear, user }) {
     const [uploadingFor, setUploadingFor] = useState(null);
     const [currentKraIndex, setCurrentKraIndex] = useState(0);
+    const [viewingPdf, setViewingPdf] = useState(null);
+    const [pdfZoom, setPdfZoom] = useState(100);
     const { data, setData, post, processing, errors, reset } = useForm({
         objective_id: '',
         competency_id: '',
@@ -13,10 +16,6 @@ export default function TeacherIpcrf({ kras, submissions, schoolYear, user }) {
         notes: '',
         school_year: schoolYear,
     });
-
-    const handleLogout = () => {
-        router.post(route('logout'));
-    };
 
     const handleFileUpload = (objectiveId, competencyId = null) => {
         setUploadingFor({ objectiveId, competencyId });
@@ -78,43 +77,34 @@ export default function TeacherIpcrf({ kras, submissions, schoolYear, user }) {
     }
 
     return (
-        <>
+        <TeacherLayout user={user}>
             <Head title="IPCRF Tool" />
             
-            <div className="min-h-screen bg-gray-50">
-                {/* Sticky Header */}
-                <header className="sticky top-0 z-50 bg-white shadow-sm border-b">
+            <div className="min-h-screen">
+                {/* Page Header */}
+                <div className="bg-white/95 backdrop-blur-lg shadow-sm border-b border-green-100 lg:sticky lg:top-0 z-30">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                        <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4">
+                            <div className="relative">
+                                <div className="absolute -inset-1 bg-gradient-to-r from-green-600 to-green-600 rounded-full blur opacity-25"></div>
                                 <img 
                                     src="/pictures/isat.jpg" 
                                     alt="ISAT" 
-                                    className="h-16 w-16 rounded-lg object-cover"
+                                    className="relative h-16 w-16 rounded-full object-cover ring-2 ring-white shadow-lg"
                                 />
-                                <div>
-                                    <h1 className="text-2xl font-bold text-gray-900">OFFICIAL ELECTRONIC IPCRF TOOL v4.3</h1>
-                                    <p className="text-sm text-gray-600">Proficient Regular Teacher - SY {schoolYear}</p>
-                                </div>
                             </div>
-                            <Button onClick={handleLogout} variant="outline">
-                                Logout
-                            </Button>
+                            <div>
+                                <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-green-600">OFFICIAL ELECTRONIC IPCRF TOOL v4.3</h1>
+                                <p className="text-sm text-gray-600 font-medium">Proficient Regular Teacher - SY {schoolYear}</p>
+                            </div>
                         </div>
                     </div>
-                </header>
+                </div>
 
                 {/* Main Content */}
                 <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-                        <p className="text-sm text-green-800">
-                            This electronic IPCRF Tool is set with the details below. Select a career stage to view the objectives set for this tool. 
-                            Please review and click Proceed to start using the tool.
-                        </p>
-                    </div>
-
                     {/* Teacher Information Section */}
-                    <div className="bg-white rounded-lg shadow p-6 mb-6">
+                    <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border border-green-100">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-4">
                                 <div className="flex items-center gap-4">
@@ -156,12 +146,12 @@ export default function TeacherIpcrf({ kras, submissions, schoolYear, user }) {
                         </div>
                     </div>
 
-                    {/* KRA Navigation - Sticky */}
-                    <div className="sticky top-[104px] z-40 bg-white rounded-lg shadow p-4 mb-4">
+                    {/* KRA Navigation */}
+                    <div className="bg-white/95 backdrop-blur-lg rounded-xl shadow-lg p-4 mb-4 border border-green-100">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
-                                <h3 className="text-lg font-semibold text-gray-900">
-                                    KRA {currentKraIndex + 1} of {kras.length}: {currentKra.name}
+                                <h3 className="text-lg font-bold text-gray-900">
+                                    KRA {currentKraIndex + 1} of {kras.length}: <span className="text-green-600">{currentKra.name}</span>
                                 </h3>
                             </div>
                             <div className="flex gap-2">
@@ -170,6 +160,7 @@ export default function TeacherIpcrf({ kras, submissions, schoolYear, user }) {
                                     disabled={currentKraIndex === 0}
                                     variant="outline"
                                     size="sm"
+                                    className="border-green-200 hover:bg-green-50 hover:text-green-700 disabled:opacity-50"
                                 >
                                     ← Previous KRA
                                 </Button>
@@ -178,20 +169,21 @@ export default function TeacherIpcrf({ kras, submissions, schoolYear, user }) {
                                     disabled={currentKraIndex === kras.length - 1}
                                     variant="outline"
                                     size="sm"
+                                    className="border-green-200 hover:bg-green-50 hover:text-green-700 disabled:opacity-50"
                                 >
                                     Next KRA →
                                 </Button>
                             </div>
                         </div>
-                        <div className="mt-2 flex gap-2">
+                        <div className="mt-3 flex gap-2">
                             {kras.map((kra, index) => (
                                 <button
                                     key={kra.id}
                                     onClick={() => setCurrentKraIndex(index)}
-                                    className={`px-3 py-1 text-xs font-semibold rounded ${
+                                    className={`px-4 py-2 text-xs font-bold rounded-lg transition-all duration-200 ${
                                         index === currentKraIndex
-                                            ? 'bg-green-600 text-white'
-                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                            ? 'bg-gradient-to-r from-green-600 to-green-700 text-white shadow-lg scale-105 ring-2 ring-green-400'
+                                            : 'bg-white text-gray-700 hover:bg-green-50 hover:text-green-700 hover:shadow border border-gray-200'
                                     }`}
                                 >
                                     KRA {index + 1}
@@ -271,14 +263,13 @@ export default function TeacherIpcrf({ kras, submissions, schoolYear, user }) {
                                                 <td className={`px-3 py-2 text-center border-l-2 border-r-2 border-gray-400 bg-gray-50 ${isLastInKra ? 'border-b-2' : ''} ${objIndex === 0 ? 'border-t-2' : ''}`}>
                                                     {objectiveSubmission ? (
                                                         <div className="flex flex-col items-center gap-1">
-                                                            <a 
-                                                                href={`/storage/${objectiveSubmission.file_path}`} 
-                                                                target="_blank"
+                                                            <button
+                                                                onClick={() => setViewingPdf({ path: objectiveSubmission.file_path, title: 'Objective Evidence' })}
                                                                 className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
                                                             >
                                                                 <FileText className="h-4 w-4" />
                                                                 <span className="text-xs">View PDF</span>
-                                                            </a>
+                                                            </button>
                                                             {isObjectiveReviewed && objectiveSubmission.rating && (
                                                                 <span className="text-xs text-green-600 font-semibold">
                                                                     ★ {objectiveSubmission.rating}
@@ -329,14 +320,13 @@ export default function TeacherIpcrf({ kras, submissions, schoolYear, user }) {
                                                     {competency ? (
                                                         competencySubmission ? (
                                                             <div className="flex flex-col items-center gap-1">
-                                                                <a 
-                                                                    href={`/storage/${competencySubmission.file_path}`} 
-                                                                    target="_blank"
+                                                                <button
+                                                                    onClick={() => setViewingPdf({ path: competencySubmission.file_path, title: 'COI/NCOI Evidence' })}
                                                                     className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
                                                                 >
                                                                     <FileText className="h-4 w-4" />
                                                                     <span className="text-xs">View PDF</span>
-                                                                </a>
+                                                                </button>
                                                                 {isCompetencyReviewed && competencySubmission.rating && (
                                                                     <span className="text-xs text-green-600 font-semibold">
                                                                         ★ {competencySubmission.rating}
@@ -409,6 +399,83 @@ export default function TeacherIpcrf({ kras, submissions, schoolYear, user }) {
                     </div>
                 </main>
 
+                {/* PDF Viewer Modal */}
+                {viewingPdf && (
+                    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-2xl w-full max-w-6xl h-[90vh] flex flex-col shadow-2xl">
+                            {/* Modal Header */}
+                            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-green-600 to-green-700">
+                                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                    <FileText className="h-5 w-5" />
+                                    {viewingPdf.title}
+                                </h3>
+                                <div className="flex items-center gap-3">
+                                    {/* Zoom Controls */}
+                                    <div className="flex items-center gap-2 bg-white/20 rounded-lg px-3 py-1.5">
+                                        <button
+                                            onClick={() => setPdfZoom(Math.max(50, pdfZoom - 10))}
+                                            className="text-white hover:text-green-100 transition-colors"
+                                            title="Zoom Out"
+                                        >
+                                            <ZoomOut className="h-4 w-4" />
+                                        </button>
+                                        <span className="text-white font-semibold text-sm min-w-[50px] text-center">
+                                            {pdfZoom}%
+                                        </span>
+                                        <button
+                                            onClick={() => setPdfZoom(Math.min(200, pdfZoom + 10))}
+                                            className="text-white hover:text-green-100 transition-colors"
+                                            title="Zoom In"
+                                        >
+                                            <ZoomIn className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                    
+                                    {/* Download Button */}
+                                    <a
+                                        href={`/storage/${viewingPdf.path}`}
+                                        download
+                                        className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                                    >
+                                        <Download className="h-4 w-4" />
+                                        <span className="text-sm font-medium">Download</span>
+                                    </a>
+                                    
+                                    {/* Close Button */}
+                                    <button
+                                        onClick={() => {
+                                            setViewingPdf(null);
+                                            setPdfZoom(100);
+                                        }}
+                                        className="bg-white/20 hover:bg-white/30 text-white p-2 rounded-lg transition-colors"
+                                        title="Close"
+                                    >
+                                        <X className="h-5 w-5" />
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            {/* PDF Viewer */}
+                            <div className="flex-1 overflow-auto bg-gray-100 p-4">
+                                <div className="flex justify-center">
+                                    <iframe
+                                        src={`/storage/${viewingPdf.path}`}
+                                        className="bg-white shadow-lg rounded-lg"
+                                        style={{
+                                            width: `${pdfZoom}%`,
+                                            minWidth: '100%',
+                                            height: '100%',
+                                            minHeight: '800px',
+                                            border: 'none'
+                                        }}
+                                        title="PDF Viewer"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Upload Modal */}
                 {uploadingFor && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -467,6 +534,6 @@ export default function TeacherIpcrf({ kras, submissions, schoolYear, user }) {
                     </div>
                 )}
             </div>
-        </>
+        </TeacherLayout>
     );
 }

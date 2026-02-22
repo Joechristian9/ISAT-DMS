@@ -22,6 +22,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'photo',
         'current_position_id',
         'division',
         'teacher_type',

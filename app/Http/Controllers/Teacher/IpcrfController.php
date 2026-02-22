@@ -35,6 +35,7 @@ class IpcrfController extends Controller
             'kras' => $kras,
             'submissions' => $submissions,
             'schoolYear' => $currentYear,
+            'user' => auth()->user(),
         ]);
     }
 
