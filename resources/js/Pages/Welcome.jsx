@@ -67,6 +67,7 @@ export default function Welcome({ auth }) {
         };
     }, []);
 
+    //
     const features = [
         {
             icon: FileText,
