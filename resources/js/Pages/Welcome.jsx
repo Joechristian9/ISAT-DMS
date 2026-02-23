@@ -24,7 +24,6 @@ export default function Welcome({ auth }) {
     const [isLearnMoreOpen, setIsLearnMoreOpen] = useState(false);
     const [scrollY, setScrollY] = useState(0);
     const [isVisible, setIsVisible] = useState({});
-    const [stats, setStats] = useState({ secure: 0, access: 0, speed: 0 });
     const observerRef = useRef(null);
 
     // Scroll handler for parallax and sticky nav
@@ -68,31 +67,6 @@ export default function Welcome({ auth }) {
         };
     }, []);
 
-    // Animated counter for stats
-    useEffect(() => {
-        const duration = 2000;
-        const steps = 60;
-        const increment = duration / steps;
-        
-        let currentStep = 0;
-        const timer = setInterval(() => {
-            currentStep++;
-            const progress = currentStep / steps;
-            
-            setStats({
-                secure: Math.floor(progress * 100),
-                access: Math.floor(progress * 24),
-                speed: Math.floor(progress * 100),
-            });
-            
-            if (currentStep >= steps) {
-                clearInterval(timer);
-                setStats({ secure: 100, access: 24, speed: 100 });
-            }
-        }, increment);
-        
-        return () => clearInterval(timer);
-    }, []);
     const features = [
         {
             icon: FileText,
@@ -310,28 +284,6 @@ export default function Welcome({ auth }) {
                                             <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform relative" />
                                         </Link>
                                     )}
-                                </div>
-
-                                {/* Stats - Animated counters */}
-                                <div className="grid grid-cols-3 gap-6 pt-8 border-t border-gray-200 animate-fade-in animation-delay-600">
-                                    <div className="group cursor-default">
-                                        <div className="text-3xl font-bold text-[#1a5f3a] transition-all duration-300 group-hover:scale-110">
-                                            {stats.secure}%
-                                        </div>
-                                        <div className="text-sm text-gray-600 mt-1">Secure</div>
-                                    </div>
-                                    <div className="group cursor-default">
-                                        <div className="text-3xl font-bold text-[#fbbf24] transition-all duration-300 group-hover:scale-110">
-                                            {stats.access}/7
-                                        </div>
-                                        <div className="text-sm text-gray-600 mt-1">Access</div>
-                                    </div>
-                                    <div className="group cursor-default">
-                                        <div className="text-3xl font-bold text-[#1a5f3a] transition-all duration-300 group-hover:scale-110">
-                                            {stats.speed}%
-                                        </div>
-                                        <div className="text-sm text-gray-600 mt-1">Fast</div>
-                                    </div>
                                 </div>
                                 
                                 {/* Scroll indicator */}
