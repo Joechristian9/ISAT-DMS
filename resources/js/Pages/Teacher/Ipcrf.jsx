@@ -88,7 +88,7 @@ export default function TeacherIpcrf({ kras, submissions, schoolYear, user }) {
                             <div className="relative">
                                 <div className="absolute -inset-1 bg-gradient-to-r from-green-600 to-green-600 rounded-full blur opacity-25"></div>
                                 <img 
-                                    src="/pictures/isat.jpg" 
+                                    src="/pictures/isat.tmp" 
                                     alt="ISAT" 
                                     className="relative h-16 w-16 rounded-full object-cover ring-2 ring-white shadow-lg"
                                 />

@@ -22,7 +22,6 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'photo',
         'current_position_id',
         'division',
         'teacher_type',
@@ -48,6 +47,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'date_hired' => 'date',
+            'is_active' => 'boolean',
         ];
     }
 
