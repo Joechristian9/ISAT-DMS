@@ -52,6 +52,7 @@ class IpcrfRatingSeeder extends Seeder
                 $kraDetails[] = [
                     'kra_id' => $kra->id,
                     'kra_name' => $kra->name,
+                    'weight' => $this->getKraWeight($kra->id),
                     'objectives' => $objectives,
                     'average_rating' => round($kraRatingSum / count($objectives), 2),
                     'score' => round($kraScore, 2),
@@ -73,5 +74,21 @@ class IpcrfRatingSeeder extends Seeder
 
             $this->command->info("Created IPCRF rating for {$teacher->name}");
         }
+    }
+
+    /**
+     * Get standard KRA weight based on KRA ID
+     */
+    private function getKraWeight($kraId): int
+    {
+        $weights = [
+            1 => 30, // KRA 1: Content Knowledge and Pedagogy
+            2 => 20, // KRA 2: Learning Environment & Diversity
+            3 => 20, // KRA 3: Curriculum and Planning
+            4 => 20, // KRA 4: Community Linkages
+            5 => 10, // KRA 5: Personal Growth
+        ];
+        
+        return $weights[$kraId] ?? 20; // Default to 20% if not found
     }
 }

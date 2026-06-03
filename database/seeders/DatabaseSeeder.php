@@ -40,8 +40,8 @@ class DatabaseSeeder extends Seeder
         // Create 3 admins
         for ($i = 1; $i <= 3; $i++) {
             $admin = User::factory()->create([
-                'name' => "Admin $i",
-                'email' => "admin$i@gmail.com",
+                'name' => "Admin {$i}",
+                'email' => "admin{$i}@mail.com",
                 'password' => bcrypt('admin123'),
             ]);
             $admin->assignRole('admin');
