@@ -20,16 +20,26 @@ class PositionSeeder extends Seeder
         ];
 
         foreach ($positions as $position) {
-            Position::create($position);
+            Position::firstOrCreate(
+                ['order' => $position['order']],
+                $position
+            );
         }
 
         // Set parent relationships for hierarchy
         $beginner = Position::where('name', 'Beginner')->first();
         $proficient = Position::where('name', 'Proficient')->first();
         $highlyProficient = Position::where('name', 'Highly Proficient')->first();
+        $distinguished = Position::where('name', 'Distinguished')->first();
 
-        $proficient->update(['parent_position_id' => $beginner->id]);
-        $highlyProficient->update(['parent_position_id' => $proficient->id]);
-        Position::where('name', 'Distinguished')->first()->update(['parent_position_id' => $highlyProficient->id]);
+        if ($beginner && $proficient) {
+            $proficient->update(['parent_position_id' => $beginner->id]);
+        }
+        if ($proficient && $highlyProficient) {
+            $highlyProficient->update(['parent_position_id' => $proficient->id]);
+        }
+        if ($highlyProficient && $distinguished) {
+            $distinguished->update(['parent_position_id' => $highlyProficient->id]);
+        }
     }
 }
