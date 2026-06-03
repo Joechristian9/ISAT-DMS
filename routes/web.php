@@ -14,6 +14,15 @@ Route::get('/', function () {
     ]);
 });
 
+// About ISAT Routes
+Route::get('/vision', function () {
+    return Inertia::render('Vision');
+})->name('vision');
+
+Route::get('/mission', function () {
+    return Inertia::render('Mission');
+})->name('mission');
+
 Route::get('/dashboard', function () {
     $user = auth()->user();
     

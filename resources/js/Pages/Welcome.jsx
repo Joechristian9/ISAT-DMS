@@ -1,30 +1,24 @@
 import { Head, Link } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
 import { 
-    FileText, 
-    Users, 
-    Shield, 
-    BarChart3, 
     CheckCircle, 
-    Clock,
     Award,
-    Lock,
-    TrendingUp,
-    Settings,
     ArrowRight,
-    Zap,
     Target,
     Eye,
     X,
     ChevronDown,
-    Sparkles
+    Sparkles,
+    TrendingUp
 } from 'lucide-react';
 
 export default function Welcome({ auth }) {
     const [isLearnMoreOpen, setIsLearnMoreOpen] = useState(false);
+    const [isAboutDropdownOpen, setIsAboutDropdownOpen] = useState(false);
     const [scrollY, setScrollY] = useState(0);
     const [isVisible, setIsVisible] = useState({});
     const observerRef = useRef(null);
+    const dropdownRef = useRef(null);
 
     // Scroll handler for parallax and sticky nav
     useEffect(() => {
@@ -67,96 +61,17 @@ export default function Welcome({ auth }) {
         };
     }, []);
 
-    //
-    const features = [
-        {
-            icon: FileText,
-            title: "Easy IPCRF Submission",
-            description: "Submit your Individual Performance Commitment and Review Forms digitally with a simple, intuitive interface. Track your submissions in real-time.",
-            color: "bg-[#1a5f3a]"
-        },
-        {
-            icon: TrendingUp,
-            title: "Track Your Growth",
-            description: "Monitor your professional development journey with detailed performance insights and personalized feedback on your achievements.",
-            color: "bg-[#fbbf24]"
-        },
-        {
-            icon: Award,
-            title: "Career Advancement",
-            description: "Access your promotion history, view eligibility status, and track your path to career advancement with transparent evaluation criteria.",
-            color: "bg-[#1a5f3a]"
-        },
-        {
-            icon: Target,
-            title: "Goal Setting & KRAs",
-            description: "Set clear Key Result Areas and objectives aligned with DepEd standards. Receive guidance on achieving your professional goals.",
-            color: "bg-[#fbbf24]"
-        },
-        {
-            icon: BarChart3,
-            title: "Performance Dashboard",
-            description: "View your performance ratings, submission history, and evaluation results in one comprehensive, easy-to-understand dashboard.",
-            color: "bg-[#1a5f3a]"
-        },
-        {
-            icon: CheckCircle,
-            title: "Instant Notifications",
-            description: "Stay informed with real-time updates on submission status, evaluation results, and important deadlines. Never miss an opportunity.",
-            color: "bg-[#fbbf24]"
-        }
-    ];
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsAboutDropdownOpen(false);
+            }
+        };
 
-    const benefits = [
-        {
-            title: "Save Time",
-            description: "Submit your IPCRF documents in minutes, not hours. No more paperwork or manual filing.",
-            icon: Clock,
-            stat: "90%",
-            statLabel: "Time Saved"
-        },
-        {
-            title: "Stay Organized",
-            description: "All your documents, ratings, and feedback in one secure, accessible location.",
-            icon: FileText,
-            stat: "100%",
-            statLabel: "Digital"
-        },
-        {
-            title: "Grow Your Career",
-            description: "Clear visibility into your performance helps you identify strengths and areas for improvement.",
-            icon: TrendingUp,
-            stat: "24/7",
-            statLabel: "Access"
-        }
-    ];
-
-    const workflow = [
-        {
-            step: "1",
-            title: "Create Account",
-            description: "Get your credentials from your school administrator",
-            icon: Users
-        },
-        {
-            step: "2",
-            title: "Upload Documents",
-            description: "Submit your IPCRF forms digitally with ease",
-            icon: FileText
-        },
-        {
-            step: "3",
-            title: "Track Progress",
-            description: "Monitor your submission status in real-time",
-            icon: Clock
-        },
-        {
-            step: "4",
-            title: "View Results",
-            description: "Access your ratings and feedback instantly",
-            icon: Award
-        }
-    ];
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     return (
         <>
@@ -192,12 +107,47 @@ export default function Welcome({ auth }) {
                             </div>
                             
                             <div className="flex items-center gap-4">
+                                {/* About ISAT Dropdown */}
+                                <div className="relative" ref={dropdownRef}>
+                                    <button
+                                        onClick={() => setIsAboutDropdownOpen(!isAboutDropdownOpen)}
+                                        className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-[#1a5f3a] transition-colors duration-300 font-medium"
+                                    >
+                                        About ISAT
+                                        <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${isAboutDropdownOpen ? 'rotate-180' : ''}`} />
+                                    </button>
+                                    
+                                    {isAboutDropdownOpen && (
+                                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50 animate-fade-in">
+                                            <Link
+                                                href="/vision"
+                                                className="block px-4 py-2 text-sm text-gray-700 hover:bg-[#1a5f3a]/10 hover:text-[#1a5f3a] transition-colors duration-200"
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <Eye className="h-4 w-4" />
+                                                    Vision
+                                                </div>
+                                            </Link>
+                                            <Link
+                                                href="/mission"
+                                                className="block px-4 py-2 text-sm text-gray-700 hover:bg-[#1a5f3a]/10 hover:text-[#1a5f3a] transition-colors duration-200"
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <Target className="h-4 w-4" />
+                                                    Mission
+                                                </div>
+                                            </Link>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Login/Dashboard Button */}
                                 {auth.user ? (
                                     <Link
                                         href={route('dashboard')}
                                         className="group inline-flex items-center px-6 py-2.5 bg-gradient-to-r from-[#1a5f3a] to-[#1a5f3a]/90 text-white rounded-lg hover:from-[#1a5f3a]/90 hover:to-[#1a5f3a] transition-all duration-300 transform hover:scale-105 hover:shadow-lg"
                                     >
-                                        Go to Dashboard
+                                        Dashboard
                                         <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                                     </Link>
                                 ) : (
@@ -258,23 +208,14 @@ export default function Welcome({ auth }) {
                                 
                                 <div className="flex flex-col sm:flex-row items-start gap-4 animate-slide-up animation-delay-400">
                                     {!auth.user ? (
-                                        <>
-                                            <Link
-                                                href={route('login')}
-                                                className="group relative inline-flex items-center px-8 py-4 bg-gradient-to-r from-[#1a5f3a] to-[#1a5f3a]/90 text-white rounded-xl hover:from-[#1a5f3a]/90 hover:to-[#1a5f3a] transition-all transform hover:scale-105 hover:shadow-2xl font-semibold overflow-hidden"
-                                            >
-                                                <span className="absolute inset-0 w-full h-full bg-[#fbbf24]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
-                                                <span className="relative">Start Your Journey</span>
-                                                <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform relative" />
-                                            </Link>
-                                            <button 
-                                                onClick={() => setIsLearnMoreOpen(true)}
-                                                className="group inline-flex items-center px-8 py-4 bg-white text-[#1a5f3a] rounded-xl hover:bg-[#fbbf24]/10 transition-all border-2 border-[#1a5f3a]/30 hover:border-[#1a5f3a] font-semibold transform hover:scale-105 hover:shadow-lg"
-                                            >
-                                                <Eye className="mr-2 h-5 w-5 group-hover:scale-110 transition-transform" />
-                                                About ISAT
-                                            </button>
-                                        </>
+                                        <Link
+                                            href={route('login')}
+                                            className="group relative inline-flex items-center px-8 py-4 bg-gradient-to-r from-[#1a5f3a] to-[#1a5f3a]/90 text-white rounded-xl hover:from-[#1a5f3a]/90 hover:to-[#1a5f3a] transition-all transform hover:scale-105 hover:shadow-2xl font-semibold overflow-hidden"
+                                        >
+                                            <span className="absolute inset-0 w-full h-full bg-[#fbbf24]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                                            <span className="relative">Get Started</span>
+                                            <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform relative" />
+                                        </Link>
                                     ) : (
                                         <Link
                                             href={route('dashboard')}
@@ -335,178 +276,6 @@ export default function Welcome({ auth }) {
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                </section>
-
-                {/* Features Section - Enhanced with scroll animations */}
-                <section 
-                    className="py-24 px-4 sm:px-6 lg:px-8 bg-white"
-                    id="features"
-                    data-animate
-                >
-                    <div className="max-w-7xl mx-auto">
-                        <div className="text-center mb-16 animate-fade-in">
-                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#1a5f3a]/10 text-[#1a5f3a] rounded-full text-sm font-medium mb-4 border border-[#1a5f3a]/30">
-                                <Target className="h-4 w-4" />
-                                Built for Teachers
-                            </div>
-                            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-                                Everything You Need to Excel
-                            </h2>
-                            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                                Powerful tools designed to support your professional growth and simplify your documentation process
-                            </p>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            {features.map((feature, index) => {
-                                const Icon = feature.icon;
-                                return (
-                                    <div 
-                                        key={index}
-                                        className={`group relative bg-white rounded-2xl p-8 border-2 border-gray-200 hover:border-[#1a5f3a] transition-all hover:shadow-2xl transform hover:-translate-y-2 duration-300 cursor-pointer overflow-hidden ${
-                                            isVisible.features ? 'animate-fade-in-up' : 'opacity-0'
-                                        }`}
-                                        style={{ 
-                                            animationDelay: `${index * 150}ms`
-                                        }}
-                                    >
-                                        {/* Gradient overlay on hover - fixed z-index */}
-                                        <div className="absolute inset-0 bg-gradient-to-br from-[#1a5f3a]/5 to-[#fbbf24]/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
-                                        
-                                        <div className="relative z-10">
-                                            <div className={`${feature.color} w-16 h-16 rounded-xl flex items-center justify-center mb-6 group-hover:scale-105 transition-all duration-300 shadow-md group-hover:shadow-lg`}>
-                                                <Icon className="h-8 w-8 text-white" />
-                                            </div>
-                                            <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-[#1a5f3a] transition-colors duration-300">
-                                                {feature.title}
-                                            </h3>
-                                            <p className="text-gray-600 leading-relaxed">
-                                                {feature.description}
-                                            </p>
-                                            
-                                            {/* Hover indicator */}
-                                            <div className="mt-4 flex items-center text-[#1a5f3a] opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
-                                                <span className="text-sm font-semibold">Learn more</span>
-                                                <ArrowRight className="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform" />
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </section>
-
-                {/* Workflow Section - Enhanced */}
-                <section 
-                    className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-[#1a5f3a]/5 to-[#fbbf24]/10 relative overflow-hidden"
-                    id="workflow"
-                    data-animate
-                >
-                    {/* Decorative elements */}
-                    <div className="absolute top-0 left-0 w-64 h-64 bg-[#1a5f3a]/20 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
-                    <div className="absolute bottom-0 right-0 w-64 h-64 bg-[#fbbf24]/20 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse animation-delay-2000"></div>
-                    
-                    <div className="max-w-7xl mx-auto relative z-10">
-                        <div className="text-center mb-16">
-                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#fbbf24]/10 text-[#1a5f3a] rounded-full text-sm font-medium mb-4 border border-[#fbbf24]/50">
-                                <Zap className="h-4 w-4" />
-                                Quick & Easy
-                            </div>
-                            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-                                How It Works
-                            </h2>
-                            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                                Four simple steps to manage your professional documentation
-                            </p>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                            {workflow.map((item, index) => {
-                                const Icon = item.icon;
-                                return (
-                                    <div key={index} className="relative">
-                                        <div className={`bg-white rounded-xl p-6 border-2 border-gray-200 hover:border-[#1a5f3a] transition-all hover:shadow-xl text-center transform hover:-translate-y-2 duration-300 ${
-                                            isVisible.workflow ? 'animate-fade-in-up' : 'opacity-0'
-                                        }`}
-                                        style={{ animationDelay: `${index * 200}ms` }}
-                                        >
-                                            <div className="w-16 h-16 bg-gradient-to-br from-[#1a5f3a] to-[#fbbf24] rounded-full flex items-center justify-center mx-auto mb-4 text-white text-2xl font-bold shadow-lg hover:shadow-2xl transition-shadow hover:scale-110 duration-300">
-                                                {item.step}
-                                            </div>
-                                            <Icon className="h-8 w-8 text-[#1a5f3a] mx-auto mb-3 hover:scale-110 transition-transform duration-300" />
-                                            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                                                {item.title}
-                                            </h3>
-                                            <p className="text-gray-600 text-sm">
-                                                {item.description}
-                                            </p>
-                                        </div>
-                                        {index < workflow.length - 1 && (
-                                            <div className="hidden lg:block absolute top-1/2 -right-4 transform -translate-y-1/2 z-10">
-                                                <ArrowRight className="h-6 w-6 text-[#fbbf24] animate-pulse" />
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </section>
-
-                {/* Benefits Section - Enhanced */}
-                <section 
-                    className="py-20 px-4 sm:px-6 lg:px-8 bg-white"
-                    id="benefits"
-                    data-animate
-                >
-                    <div className="max-w-7xl mx-auto">
-                        <div className="text-center mb-16">
-                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#fbbf24]/10 text-[#1a5f3a] rounded-full text-sm font-medium mb-4 border border-[#fbbf24]/50">
-                                <Award className="h-4 w-4" />
-                                Why Teachers Love Us
-                            </div>
-                            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-                                Focus on Teaching, Not Paperwork
-                            </h2>
-                            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                                Join hundreds of teachers who have simplified their professional documentation
-                            </p>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                            {benefits.map((benefit, index) => {
-                                const Icon = benefit.icon;
-                                return (
-                                    <div 
-                                        key={index}
-                                        className={`group relative bg-gradient-to-br from-white to-gray-50 rounded-2xl p-8 border-2 border-gray-200 hover:border-[#1a5f3a] transition-all hover:shadow-2xl text-center transform hover:-translate-y-2 duration-300 ${
-                                            isVisible.benefits ? 'animate-fade-in-up' : 'opacity-0'
-                                        }`}
-                                        style={{ animationDelay: `${index * 200}ms` }}
-                                    >
-                                        {/* Stat Badge */}
-                                        <div className="absolute -top-4 right-8 bg-gradient-to-r from-[#1a5f3a] to-[#fbbf24] text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
-                                            {benefit.stat}
-                                        </div>
-                                        
-                                        <div className="w-20 h-20 bg-gradient-to-br from-[#1a5f3a]/20 to-[#fbbf24]/20 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-all duration-300 shadow-md group-hover:shadow-lg">
-                                            <Icon className="h-10 w-10 text-[#1a5f3a] group-hover:scale-110 transition-transform duration-300" />
-                                        </div>
-                                        <h3 className="text-xl font-semibold text-gray-900 mb-3 group-hover:text-[#1a5f3a] transition-colors duration-300">
-                                            {benefit.title}
-                                        </h3>
-                                        <p className="text-gray-600 mb-4 group-hover:text-gray-700 transition-colors duration-300">
-                                            {benefit.description}
-                                        </p>
-                                        <p className="text-sm text-[#1a5f3a] font-semibold">
-                                            {benefit.statLabel}
-                                        </p>
-                                    </div>
-                                );
-                            })}
                         </div>
                     </div>
                 </section>
@@ -591,100 +360,22 @@ export default function Welcome({ auth }) {
                                 </div>
                             ))}
                         </div>
-
-                        {/* Campus Info Cards */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-                            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border-2 border-[#1a5f3a]/20 hover:border-[#1a5f3a] transition-all duration-300 hover:shadow-lg transform hover:-translate-y-1">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-gradient-to-br from-[#1a5f3a] to-[#1a5f3a]/80 rounded-lg flex items-center justify-center">
-                                        <Award className="h-6 w-6 text-white" />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-bold text-gray-900">Excellence</h4>
-                                        <p className="text-sm text-gray-600">Committed to Quality</p>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border-2 border-[#fbbf24]/20 hover:border-[#fbbf24] transition-all duration-300 hover:shadow-lg transform hover:-translate-y-1">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-gradient-to-br from-[#fbbf24] to-[#fbbf24]/80 rounded-lg flex items-center justify-center">
-                                        <Users className="h-6 w-6 text-white" />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-bold text-gray-900">Community</h4>
-                                        <p className="text-sm text-gray-600">Together We Grow</p>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border-2 border-[#1a5f3a]/20 hover:border-[#1a5f3a] transition-all duration-300 hover:shadow-lg transform hover:-translate-y-1">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-gradient-to-br from-[#1a5f3a] to-[#1a5f3a]/80 rounded-lg flex items-center justify-center">
-                                        <Target className="h-6 w-6 text-white" />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-bold text-gray-900">Innovation</h4>
-                                        <p className="text-sm text-gray-600">Leading the Future</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </section>
 
                 {/* Footer */}
-                <footer className="bg-gray-900 text-gray-300 py-12 px-4 sm:px-6 lg:px-8">
+                <footer className="bg-[#2c3e50] text-gray-300 py-4 px-4 sm:px-6 lg:px-8">
                     <div className="max-w-7xl mx-auto">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-                            <div>
-                                <div className="flex items-center gap-3 mb-4">
-                                    <img 
-                                        src="/pictures/isat.tmp" 
-                                        alt="ISAT Logo" 
-                                        className="h-10 w-10 rounded-lg object-cover"
-                                    />
-                                    <div>
-                                        <h3 className="text-white font-bold">ISAT e-TRACES</h3>
-                                        <p className="text-xs text-gray-400">Document Management System</p>
-                                    </div>
-                                </div>
-                                <p className="text-sm text-gray-400">
-                                    Empowering educational institutions with efficient document management and performance evaluation tools.
-                                </p>
+                        <div className="flex flex-col md:flex-row justify-between items-center gap-2">
+                            <p className="text-sm text-gray-400">
+                                © {new Date().getFullYear()} ISAT e-TRACES. All rights reserved.
+                            </p>
+                            <div className="flex items-center gap-2 text-sm">
+                                <Award className="h-4 w-4 text-[#fbbf24]" />
+                                <span className="text-gray-400">
+                                    Isabela School of Arts and Trades
+                                </span>
                             </div>
-                            
-                            <div>
-                                <h4 className="text-white font-semibold mb-4">Quick Links</h4>
-                                <ul className="space-y-2 text-sm">
-                                    <li><Link href={route('login')} className="hover:text-white transition-colors">Login</Link></li>
-                                    {auth.user && (
-                                        <li><Link href={route('dashboard')} className="hover:text-white transition-colors">Dashboard</Link></li>
-                                    )}
-                                </ul>
-                            </div>
-                            
-                            <div>
-                                <h4 className="text-white font-semibold mb-4">System Info</h4>
-                                <ul className="space-y-2 text-sm">
-                                    <li className="flex items-center gap-2">
-                                        <CheckCircle className="h-4 w-4 text-green-500" />
-                                        Secure & Encrypted
-                                    </li>
-                                    <li className="flex items-center gap-2">
-                                        <CheckCircle className="h-4 w-4 text-green-500" />
-                                        Role-Based Access
-                                    </li>
-                                    <li className="flex items-center gap-2">
-                                        <CheckCircle className="h-4 w-4 text-green-500" />
-                                        Audit Trail Enabled
-                                    </li>
-                                </ul>
-                            </div>
-                        </div>
-                        
-                        <div className="border-t border-gray-800 pt-8 text-center text-sm">
-                            <p>&copy; {new Date().getFullYear()} ISAT e-TRACES. All rights reserved.</p>
                         </div>
                     </div>
                 </footer>
