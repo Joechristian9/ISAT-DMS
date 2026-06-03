@@ -9,7 +9,8 @@ import {
     X,
     ChevronDown,
     Sparkles,
-    TrendingUp
+    TrendingUp,
+    MapPin
 } from 'lucide-react';
 
 export default function Welcome({ auth }) {
@@ -77,7 +78,19 @@ export default function Welcome({ auth }) {
         <>
             <Head title="Welcome to ISAT e-TRACES" />
             
-            <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50">
+            <div className="min-h-screen relative overflow-hidden">
+                {/* Background Image with Overlay */}
+                <div className="fixed inset-0 z-0">
+                    <img 
+                        src="/pictures/landingpage.png" 
+                        alt="" 
+                        className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-br from-slate-900/70 via-slate-800/60 to-slate-900/70"></div>
+                </div>
+
+                {/* Content Wrapper */}
+                <div className="relative z-10">
                 {/* Navigation - Enhanced with glassmorphism and smooth transitions */}
                 <nav 
                     className={`bg-white/90 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50 transition-all duration-300 ${
@@ -140,24 +153,6 @@ export default function Welcome({ auth }) {
                                         </div>
                                     )}
                                 </div>
-
-                                {/* Login/Dashboard Button */}
-                                {auth.user ? (
-                                    <Link
-                                        href={route('dashboard')}
-                                        className="group inline-flex items-center px-6 py-2.5 bg-gradient-to-r from-[#1a5f3a] to-[#1a5f3a]/90 text-white rounded-lg hover:from-[#1a5f3a]/90 hover:to-[#1a5f3a] transition-all duration-300 transform hover:scale-105 hover:shadow-lg"
-                                    >
-                                        Dashboard
-                                        <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-                                    </Link>
-                                ) : (
-                                    <Link
-                                        href={route('login')}
-                                        className="group px-6 py-2.5 bg-gradient-to-r from-[#1a5f3a] to-[#1a5f3a]/90 text-white rounded-lg hover:from-[#1a5f3a]/90 hover:to-[#1a5f3a] transition-all duration-300 transform hover:scale-105 hover:shadow-lg"
-                                    >
-                                        Log in
-                                    </Link>
-                                )}
                             </div>
                         </div>
                     </div>
@@ -165,115 +160,68 @@ export default function Welcome({ auth }) {
 
                 {/* Hero Section - Enhanced with parallax */}
                 <section 
-                    className="relative py-24 px-4 sm:px-6 lg:px-8 overflow-hidden min-h-[90vh] flex items-center"
+                    className="relative px-4 sm:px-6 lg:px-8 overflow-hidden min-h-screen flex items-center justify-center"
                     id="hero"
                     data-animate
                 >
                     {/* Background Decoration with parallax */}
                     <div className="absolute inset-0 pointer-events-none overflow-hidden">
                         <div 
-                            className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#1a5f3a]/20 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"
+                            className="absolute top-0 right-0 w-[500px] h-[500px] bg-green-500/10 rounded-full mix-blend-screen filter blur-3xl opacity-30"
                             style={{ transform: `translateY(${scrollY * 0.1}px)` }}
                         ></div>
                         <div 
-                            className="absolute top-0 left-0 w-[500px] h-[500px] bg-[#fbbf24]/20 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"
-                            style={{ transform: `translateY(${scrollY * 0.15}px)` }}
-                        ></div>
-                        <div 
-                            className="absolute bottom-0 left-1/2 w-[500px] h-[500px] bg-[#1a5f3a]/20 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"
+                            className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-yellow-500/10 rounded-full mix-blend-screen filter blur-3xl opacity-30"
                             style={{ transform: `translateY(${scrollY * 0.05}px)` }}
                         ></div>
                     </div>
 
-                    <div className="max-w-7xl mx-auto relative">
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                            {/* Left Content - Enhanced animations */}
-                            <div className="text-left space-y-8">
-                                <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#1a5f3a]/10 to-[#fbbf24]/10 text-[#1a5f3a] rounded-full text-sm font-medium animate-fade-in border border-[#1a5f3a]/30 hover:shadow-md transition-all duration-300">
-                                    <Sparkles className="h-4 w-4 animate-pulse" />
+                    <div className="max-w-5xl mx-auto relative">
+                        <div className="flex items-center justify-center">
+                            {/* Content - Enhanced */}
+                            <div className="text-center space-y-8 px-4">
+                                <div className="inline-flex items-center gap-2 px-6 py-3 bg-white/15 backdrop-blur-md text-white rounded-full text-sm font-semibold animate-fade-in border border-white/30 shadow-2xl hover:bg-white/20 transition-all duration-300">
+                                    <Sparkles className="h-5 w-5 animate-pulse text-yellow-300" />
                                     For Teachers, By Educators
                                 </div>
                                 
-                                <h1 className="text-5xl md:text-6xl font-bold text-gray-900 leading-tight animate-slide-up">
-                                    Empower Your
-                                    <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#1a5f3a] via-[#fbbf24] to-[#1a5f3a] mt-2 animate-gradient">
+                                <h1 className="text-6xl md:text-7xl lg:text-8xl font-extrabold text-white leading-tight animate-slide-up">
+                                    <span className="drop-shadow-2xl">Empower Your</span>
+                                    <span className="block text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-yellow-300 to-green-400 mt-3 animate-gradient drop-shadow-2xl">
                                         Teaching Career
                                     </span>
                                 </h1>
                                 
-                                <p className="text-xl text-gray-600 leading-relaxed animate-slide-up animation-delay-200">
+                                <p className="text-xl md:text-2xl text-gray-100 leading-relaxed animate-slide-up animation-delay-200 max-w-3xl mx-auto font-light drop-shadow-lg">
                                     Digital IPCRF submission and performance tracking made simple. 
                                     Focus on teaching while we handle your professional documentation.
                                 </p>
                                 
-                                <div className="flex flex-col sm:flex-row items-start gap-4 animate-slide-up animation-delay-400">
+                                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-slide-up animation-delay-400 pt-4">
                                     {!auth.user ? (
                                         <Link
                                             href={route('login')}
-                                            className="group relative inline-flex items-center px-8 py-4 bg-gradient-to-r from-[#1a5f3a] to-[#1a5f3a]/90 text-white rounded-xl hover:from-[#1a5f3a]/90 hover:to-[#1a5f3a] transition-all transform hover:scale-105 hover:shadow-2xl font-semibold overflow-hidden"
+                                            className="group relative inline-flex items-center px-10 py-5 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-2xl hover:from-green-500 hover:to-green-600 transition-all transform hover:scale-105 hover:shadow-2xl font-bold text-lg overflow-hidden shadow-xl"
                                         >
-                                            <span className="absolute inset-0 w-full h-full bg-[#fbbf24]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                                            <span className="absolute inset-0 w-full h-full bg-yellow-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
                                             <span className="relative">Get Started</span>
-                                            <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform relative" />
+                                            <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-2 transition-transform relative" />
                                         </Link>
                                     ) : (
                                         <Link
                                             href={route('dashboard')}
-                                            className="group relative inline-flex items-center px-8 py-4 bg-gradient-to-r from-[#1a5f3a] to-[#1a5f3a]/90 text-white rounded-xl hover:from-[#1a5f3a]/90 hover:to-[#1a5f3a] transition-all transform hover:scale-105 hover:shadow-2xl font-semibold overflow-hidden"
+                                            className="group relative inline-flex items-center px-10 py-5 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-2xl hover:from-green-500 hover:to-green-600 transition-all transform hover:scale-105 hover:shadow-2xl font-bold text-lg overflow-hidden shadow-xl"
                                         >
-                                            <span className="absolute inset-0 w-full h-full bg-[#fbbf24]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+                                            <span className="absolute inset-0 w-full h-full bg-yellow-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
                                             <span className="relative">Go to My Dashboard</span>
-                                            <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform relative" />
+                                            <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-2 transition-transform relative" />
                                         </Link>
                                     )}
                                 </div>
                                 
                                 {/* Scroll indicator */}
-                                <div className="flex justify-center pt-8 animate-bounce">
-                                    <ChevronDown className="h-8 w-8 text-gray-400" />
-                                </div>
-                            </div>
-
-                            {/* Right Content - Enhanced with 3D effect */}
-                            <div className="relative animate-fade-in animation-delay-400">
-                                <div className="relative perspective-1000">
-                                    {/* Main Image Container with glassmorphism */}
-                                    <div className="relative bg-gradient-to-br from-green-100 to-blue-100 rounded-3xl p-8 shadow-2xl transform hover:scale-105 transition-all duration-500 hover:rotate-1 backdrop-blur-sm">
-                                        <div className="relative overflow-hidden rounded-2xl">
-                                            <img 
-                                                src="/pictures/isat.tmp" 
-                                                alt="ISAT" 
-                                                className="w-full h-auto shadow-lg transition-transform duration-700 hover:scale-110"
-                                                loading="eager"
-                                            />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
-                                        </div>
-                                        
-                                        {/* Floating Cards with enhanced animations */}
-                                        <div className="absolute -top-6 -right-6 bg-white/95 backdrop-blur-sm rounded-xl shadow-xl p-4 animate-float hover:shadow-2xl transition-shadow duration-300 border border-green-100">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-green-200 rounded-lg flex items-center justify-center">
-                                                    <CheckCircle className="h-6 w-6 text-green-600" />
-                                                </div>
-                                                <div>
-                                                    <div className="text-sm font-semibold text-gray-900">Verified</div>
-                                                    <div className="text-xs text-gray-500">Secure System</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="absolute -bottom-6 -left-6 bg-white/95 backdrop-blur-sm rounded-xl shadow-xl p-4 animate-float animation-delay-2000 hover:shadow-2xl transition-shadow duration-300 border border-blue-100">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center">
-                                                    <Award className="h-6 w-6 text-blue-600" />
-                                                </div>
-                                                <div>
-                                                    <div className="text-sm font-semibold text-gray-900">Excellence</div>
-                                                    <div className="text-xs text-gray-500">Top Rated</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                <div className="flex justify-center pt-12 animate-bounce">
+                                    <ChevronDown className="h-10 w-10 text-white/70 drop-shadow-lg" />
                                 </div>
                             </div>
                         </div>
@@ -282,24 +230,21 @@ export default function Welcome({ auth }) {
 
                 {/* Campus Gallery Section - ISAT Branding */}
                 <section 
-                    className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-50 via-white to-[#1a5f3a]/5 relative overflow-hidden"
+                    className="py-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden"
                     id="gallery"
                     data-animate
                 >
-                    {/* Decorative background elements */}
-                    <div className="absolute top-0 right-0 w-96 h-96 bg-[#1a5f3a]/10 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
-                    <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#fbbf24]/10 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
                     
                     <div className="max-w-7xl mx-auto relative z-10">
                         <div className="text-center mb-16">
-                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#1a5f3a]/10 text-[#1a5f3a] rounded-full text-sm font-medium mb-4 border border-[#1a5f3a]/30">
-                                <Eye className="h-4 w-4" />
+                            <div className="inline-flex items-center gap-3 px-8 py-4 bg-white/10 backdrop-blur-md text-white rounded-full text-lg font-semibold mb-6 border border-white/20 shadow-2xl">
+                                <MapPin className="h-6 w-6 text-green-300" />
                                 Our Campus
                             </div>
-                            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
                                 Isabela School of Arts and Trades
                             </h2>
-                            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                            <p className="text-lg text-gray-300 max-w-2xl mx-auto">
                                 A glimpse into our vibrant learning environment where excellence meets innovation
                             </p>
                         </div>
@@ -307,10 +252,10 @@ export default function Welcome({ auth }) {
                         {/* Image Grid with hover effects */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {/* Main featured image - larger */}
-                            <div className={`lg:col-span-2 lg:row-span-2 group relative overflow-hidden rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 ${
+                            <div className={`lg:col-span-2 lg:row-span-2 group relative overflow-hidden rounded-3xl shadow-2xl hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] transition-all duration-500 transform hover:-translate-y-2 bg-white p-2 ${
                                 isVisible.gallery ? 'animate-fade-in-up' : 'opacity-0'
                             }`}>
-                                <div className="relative h-full min-h-[400px] overflow-hidden">
+                                <div className="relative h-full min-h-[400px] overflow-hidden rounded-[20px]">
                                     <img 
                                         src="/pictures/pic1.jpg" 
                                         alt="ISAT Campus Main Building" 
@@ -337,12 +282,12 @@ export default function Welcome({ auth }) {
                             ].map((image, index) => (
                                 <div 
                                     key={index}
-                                    className={`group relative overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 ${
+                                    className={`group relative overflow-hidden rounded-3xl shadow-2xl hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] transition-all duration-500 transform hover:-translate-y-2 bg-white p-2 ${
                                         isVisible.gallery ? 'animate-fade-in-up' : 'opacity-0'
                                     }`}
                                     style={{ animationDelay: `${(index + 1) * 150}ms` }}
                                 >
-                                    <div className="relative h-64 overflow-hidden">
+                                    <div className="relative h-64 overflow-hidden rounded-[20px]">
                                         <img 
                                             src={image.src}
                                             alt={image.title}
@@ -379,6 +324,7 @@ export default function Welcome({ auth }) {
                         </div>
                     </div>
                 </footer>
+                </div>
             </div>
 
             {/* Learn More Modal - Enhanced */}
@@ -808,6 +754,19 @@ export default function Welcome({ auth }) {
                 
                 .animate-shimmer {
                     animation: shimmer 3s infinite;
+                }
+                
+                /* Grid pattern background */
+                .bg-grid-pattern {
+                    background-image: 
+                        linear-gradient(to right, rgba(26, 95, 58, 0.1) 1px, transparent 1px),
+                        linear-gradient(to bottom, rgba(26, 95, 58, 0.1) 1px, transparent 1px);
+                    background-size: 40px 40px;
+                }
+                
+                /* Animation delays for staggered effects */
+                .animation-delay-1000 {
+                    animation-delay: 1s;
                 }
             `}</style>
             
