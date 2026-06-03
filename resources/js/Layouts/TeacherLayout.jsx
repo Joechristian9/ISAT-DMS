@@ -13,6 +13,7 @@ export default function TeacherLayout({ children, user = { name: 'User', email: 
     const navigation = [
         { name: 'Dashboard', href: route('teacher.dashboard'), icon: Home },
         { name: 'IPCRF Tool', href: route('teacher.ipcrf'), icon: FileText },
+        { name: 'Questionnaire', href: route('teacher.questionnaire'), icon: FileText },
     ];
 
     const isActive = (href) => {

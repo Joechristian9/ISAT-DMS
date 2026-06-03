@@ -10,4 +10,8 @@ Route::prefix('teacher')->name('teacher.')->middleware(['auth', 'teacher'])->gro
     Route::get('/ipcrf', [\App\Http\Controllers\Teacher\IpcrfController::class, 'index'])->name('ipcrf');
     Route::post('/ipcrf/upload', [\App\Http\Controllers\Teacher\IpcrfController::class, 'upload'])->name('ipcrf.upload');
     Route::delete('/ipcrf/{submission}', [\App\Http\Controllers\Teacher\IpcrfController::class, 'deleteFile'])->name('ipcrf.delete');
+    
+    // Questionnaire Routes
+    Route::get('/questionnaire', [\App\Http\Controllers\Teacher\QuestionnaireController::class, 'index'])->name('questionnaire');
+    Route::post('/questionnaire', [\App\Http\Controllers\Teacher\QuestionnaireController::class, 'store'])->name('questionnaire.store');
 });
