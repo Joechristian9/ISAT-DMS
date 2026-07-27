@@ -26,7 +26,7 @@ class DatabaseSeeder extends Seeder
         $teacherRole = Role::create(['name' => 'teacher']);
 
         // Get positions for teachers
-        $beginnerPosition = Position::where('name', 'Beginner')->first();
+        $beginnerPosition = Position::where('name', 'Beginning Towards Proficient')->first();
         $proficientPosition = Position::where('name', 'Proficient')->first();
 
         // Create super admin
@@ -41,7 +41,7 @@ class DatabaseSeeder extends Seeder
         for ($i = 1; $i <= 3; $i++) {
             $admin = User::factory()->create([
                 'name' => "Admin {$i}",
-                'email' => "admin{$i}@mail.com",
+                'email' => "admin{$i}@gmail.com",
                 'password' => bcrypt('admin123'),
             ]);
             $admin->assignRole('admin');
