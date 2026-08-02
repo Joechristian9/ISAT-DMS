@@ -16,11 +16,14 @@ class Objective extends Model
         'order',
         'weight',
         'is_active',
+        'ipcrf_configuration_id',
+        'is_custom',
     ];
 
     protected $casts = [
         'weight' => 'decimal:2',
         'is_active' => 'boolean',
+        'is_custom' => 'boolean',
     ];
 
     public function kra()

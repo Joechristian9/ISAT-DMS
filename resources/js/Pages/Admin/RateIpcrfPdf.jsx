@@ -30,7 +30,7 @@ import { ArrowLeft, Save, User, Award, Star, FileText, Download } from 'lucide-r
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-export default function RateIpcrfPdf({ teacher, submissions, auth, flash }) {
+export default function RateIpcrfPdf({ teacher, submissions, availableYears, selectedYear, auth, flash }) {
     const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
     const [selectedSubmissionIndex, setSelectedSubmissionIndex] = useState(null);
     const [currentPage, setCurrentPage] = useState(0);
@@ -46,10 +46,26 @@ export default function RateIpcrfPdf({ teacher, submissions, auth, flash }) {
         }
     }, [flash]);
 
-    // Initialize ratings for all submissions
+    // Handle school year change
+    const handleYearChange = (e) => {
+        const year = e.target.value;
+        router.get(route('admin.ipcrf.rate', teacher.id), {
+            school_year: year || ''
+        }, {
+            preserveState: false,  // Don't preserve state to reload fresh data
+            preserveScroll: false,
+        });
+    };
+
+    // Initialize ratings for all submissions - update when submissions change
     const [ratings, setRatings] = useState(
         submissions.map(sub => sub.rating || 0)
     );
+
+    // Update ratings when submissions change
+    useEffect(() => {
+        setRatings(submissions.map(sub => sub.rating || 0));
+    }, [submissions]);
 
     // Update rating for a specific submission
     const updateRating = (index, rating) => {
@@ -526,6 +542,33 @@ export default function RateIpcrfPdf({ teacher, submissions, auth, flash }) {
 
                                     {/* Teacher Info Card */}
                                     <div className="bg-white rounded-lg border-2 border-green-200 p-4">
+                                        {/* School Year Selector */}
+                                        {availableYears && availableYears.length > 0 && (
+                                            <div className="mb-4 pb-4 border-b border-gray-200">
+                                                <label htmlFor="school_year" className="block text-sm font-medium text-gray-700 mb-2">
+                                                    Select School Year to Rate:
+                                                </label>
+                                                <select
+                                                    id="school_year"
+                                                    value={selectedYear || ''}
+                                                    onChange={handleYearChange}
+                                                    className="w-full md:w-64 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                                                >
+                                                    <option value="">All School Years</option>
+                                                    {availableYears.map((year) => (
+                                                        <option key={year} value={year}>
+                                                            SY {year}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                {selectedYear && (
+                                                    <p className="mt-2 text-sm text-gray-600">
+                                                        Showing submissions for <span className="font-semibold text-green-600">SY {selectedYear}</span>
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
+                                        
                                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                             <div className="flex items-start gap-3">
                                                 <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center flex-shrink-0">

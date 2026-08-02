@@ -1,11 +1,19 @@
 import { Head } from '@inertiajs/react';
 import TeacherLayout from '@/Layouts/TeacherLayout';
+import DeadlineReminder from '@/Components/DeadlineReminder';
 import { FileText, ArrowRight, Target, TrendingUp, Award, CheckCircle2, Clock, BarChart3, Upload, Eye, Sparkles, Zap, ArrowDown } from 'lucide-react';
 
-export default function TeacherDashboard({ user }) {
+export default function TeacherDashboard({ user, activeConfig, submissions, signedIpcrf }) {
     return (
         <TeacherLayout user={user}>
             <Head title="Teacher Dashboard" />
+            
+            {/* Deadline Reminder */}
+            <DeadlineReminder 
+                activeConfig={activeConfig}
+                submissions={submissions}
+                signedIpcrf={signedIpcrf}
+            />
             
             {/* Hero Section */}
             <div className="min-h-screen relative overflow-hidden">

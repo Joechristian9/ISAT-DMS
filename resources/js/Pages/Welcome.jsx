@@ -150,6 +150,15 @@ export default function Welcome({ auth }) {
                                                     Mission
                                                 </div>
                                             </Link>
+                                            <Link
+                                                href="/core-values"
+                                                className="block px-4 py-2 text-sm text-gray-700 hover:bg-[#1a5f3a]/10 hover:text-[#1a5f3a] transition-colors duration-200"
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <Award className="h-4 w-4" />
+                                                    Core Values
+                                                </div>
+                                            </Link>
                                         </div>
                                     )}
                                 </div>
@@ -362,7 +371,7 @@ export default function Welcome({ auth }) {
                                         </div>
                                         <div>
                                             <h3 className="text-2xl font-bold text-white">About ISAT</h3>
-                                            <p className="text-green-100 text-sm">Vision, Mission, Goals & Objectives</p>
+                                            <p className="text-green-100 text-sm">Vision, Mission & Core Values</p>
                                         </div>
                                     </div>
                                     <button
@@ -387,7 +396,7 @@ export default function Welcome({ auth }) {
                                             <h4 className="text-xl font-bold text-blue-900">VISION</h4>
                                         </div>
                                         <p className="text-gray-700 leading-relaxed pl-13">
-                                            "A center of excellence geared towards developing Filipino workforce that initiates transformational approaches receptive to the changing needs of time."
+                                            "To produce Filipinos who passionately love their country, realize their full potential, and contribute to nation-building through a continuously improving, learner-centered environment."
                                         </p>
                                     </div>
 
@@ -400,8 +409,36 @@ export default function Welcome({ auth }) {
                                             <h4 className="text-xl font-bold text-green-900">MISSION</h4>
                                         </div>
                                         <p className="text-gray-700 leading-relaxed pl-13">
-                                            "ISAT commits to produce highly skilled workforce with positive work values and green skills through quality training, innovative research and responsive community engagement."
+                                            "To provide quality, equitable, and culture-based basic education in a safe, motivating environment, supported by nurturing teachers and active stakeholder involvement."
                                         </p>
+                                    </div>
+
+                                    {/* Core Values */}
+                                    <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl p-6 border-2 border-yellow-200">
+                                        <div className="flex items-start gap-3 mb-4">
+                                            <div className="w-10 h-10 bg-yellow-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                <Award className="h-5 w-5 text-white" />
+                                            </div>
+                                            <h4 className="text-xl font-bold text-yellow-900">CORE VALUES</h4>
+                                        </div>
+                                        <div className="pl-13 grid grid-cols-2 gap-3">
+                                            <div className="flex items-center gap-2 text-gray-700">
+                                                <CheckCircle className="h-5 w-5 text-yellow-600 flex-shrink-0" />
+                                                <span className="font-medium">Maka-Diyos</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-gray-700">
+                                                <CheckCircle className="h-5 w-5 text-yellow-600 flex-shrink-0" />
+                                                <span className="font-medium">Maka-tao</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-gray-700">
+                                                <CheckCircle className="h-5 w-5 text-yellow-600 flex-shrink-0" />
+                                                <span className="font-medium">Makakalikasan</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-gray-700">
+                                                <CheckCircle className="h-5 w-5 text-yellow-600 flex-shrink-0" />
+                                                <span className="font-medium">Makabansa</span>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     {/* Goals */}

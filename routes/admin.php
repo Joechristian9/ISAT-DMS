@@ -32,6 +32,17 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::put('/ipcrf/objective/{objective}', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'updateObjective'])->name('ipcrf.objective.update');
     Route::delete('/ipcrf/objective/{objective}', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'deleteObjective'])->name('ipcrf.objective.delete');
     
+    // Signed IPCRF Management
+    Route::get('/signed-ipcrf', [\App\Http\Controllers\Admin\SignedIpcrfController::class, 'index'])->name('signed-ipcrf');
+    Route::post('/signed-ipcrf/{signedIpcrf}/review', [\App\Http\Controllers\Admin\SignedIpcrfController::class, 'review'])->name('signed-ipcrf.review');
+    Route::get('/signed-ipcrf/{signedIpcrf}/download', [\App\Http\Controllers\Admin\SignedIpcrfController::class, 'download'])->name('signed-ipcrf.download');
+    
+    // IPCRF History
+    Route::get('/ipcrf-history', [\App\Http\Controllers\Admin\IpcrfHistoryController::class, 'index'])->name('ipcrf-history');
+    
+    // Survey Results
+    Route::get('/survey-results', [\App\Http\Controllers\Admin\SurveyController::class, 'index'])->name('survey-results');
+    
     // Teacher Management
     Route::get('/teachers', [TeacherManagementController::class, 'index'])->name('teachers.index');
     Route::post('/teachers', [TeacherManagementController::class, 'store'])->name('teachers.store');

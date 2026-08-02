@@ -55,7 +55,7 @@ export default function Vision() {
                             
                             <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-10 shadow-lg border-2 border-blue-100">
                                 <p className="text-2xl text-gray-800 leading-relaxed text-center font-light italic">
-                                    "A center of excellence geared towards developing Filipino workforce that initiates transformational approaches receptive to the changing needs of time."
+                                    "To produce Filipinos who passionately love their country, realize their full potential, and contribute to nation-building through a continuously improving, learner-centered environment."
                                 </p>
                             </div>
                         </div>
