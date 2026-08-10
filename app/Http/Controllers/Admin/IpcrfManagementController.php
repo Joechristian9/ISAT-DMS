@@ -34,11 +34,9 @@ class IpcrfManagementController extends Controller
         $query = User::role('teacher')
             ->with([
                 'currentPosition', 
-                'ipcrfRatings' => function ($q) use ($yearFilter) {
-                    if ($yearFilter) {
-                        $q->where('rating_period', $yearFilter);
-                    }
-                    $q->latest();
+                'ipcrfRatings' => function ($q) {
+                    // Load ALL ratings for rating history display (no year filter here)
+                    $q->orderBy('rating_period', 'desc')->orderBy('created_at', 'desc');
                 },
                 'teacherSubmissions' => function ($q) {
                     $q->latest()->limit(10);
@@ -76,7 +74,7 @@ class IpcrfManagementController extends Controller
         ]);
     }
 
-    public function rateTeacher(User $teacher)
+    public function rateTeacher(User $teacher, Request $request)
     {
         // Ensure the user is a teacher
         if (!$teacher->hasRole('teacher')) {
@@ -84,15 +82,37 @@ class IpcrfManagementController extends Controller
                 ->with('error', 'Invalid teacher selected.');
         }
 
-        // Get teacher's IPCRF submissions with related data
-        $submissions = TeacherSubmission::where('teacher_id', $teacher->id)
-            ->with(['objective', 'competency'])
-            ->orderBy('created_at', 'desc')
-            ->get();
+        // Get school year from request, default to current active config
+        $schoolYear = $request->input('school_year');
+        
+        // If no school year provided, get from active configuration
+        if (!$schoolYear) {
+            $activeConfig = \App\Models\IpcrfConfiguration::where('is_active', true)->first();
+            $schoolYear = $activeConfig ? $activeConfig->school_year : null;
+        }
+
+        // Get available school years for this teacher
+        $availableYears = TeacherSubmission::where('teacher_id', $teacher->id)
+            ->select('school_year')
+            ->distinct()
+            ->orderBy('school_year', 'desc')
+            ->pluck('school_year');
+
+        // Get teacher's IPCRF submissions with related data for selected year
+        $query = TeacherSubmission::where('teacher_id', $teacher->id)
+            ->with(['objective', 'competency']);
+        
+        if ($schoolYear) {
+            $query->where('school_year', $schoolYear);
+        }
+        
+        $submissions = $query->orderBy('created_at', 'desc')->get();
 
         return Inertia::render('Admin/RateIpcrfPdf', [
             'teacher' => $teacher->load('currentPosition'),
             'submissions' => $submissions,
+            'availableYears' => $availableYears,
+            'selectedYear' => $schoolYear,
             'auth' => [
                 'user' => auth()->user()->load('roles'),
             ],
@@ -153,7 +173,13 @@ class IpcrfManagementController extends Controller
         );
 
         return redirect()->route('admin.ipcrf.submissions')
-            ->with('success', 'All ratings submitted successfully! Average rating: ' . $averageRating . '/5');
+            ->with('success', 'All ratings submitted successfully! Average rating: ' . $averageRating . '/5')
+            ->with('show_survey', true)
+            ->with('rating_data', [
+                'rating_id' => $ipcrfRating->id,
+                'teacher_id' => $teacherId,
+                'school_year' => $ratingPeriod,
+            ]);
     }
 
     public function storeRating(Request $request)

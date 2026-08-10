@@ -10,7 +10,9 @@ class IpcrfRating extends Model
     protected $fillable = [
         'teacher_id',
         'rating_period',
+        'school_year',
         'numerical_rating',
+        'performance_level',
         'status',
         'kra_details',
         'total_score',
@@ -40,5 +42,47 @@ class IpcrfRating extends Model
     public function approvedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    /**
+     * Calculate performance level based on numerical rating
+     * Based on DEPED IPCRF rating scale
+     */
+    public function calculatePerformanceLevel(): string
+    {
+        if ($this->numerical_rating === null) {
+            return 'Not Rated';
+        }
+
+        $rating = $this->numerical_rating;
+
+        if ($rating >= 4.500 && $rating <= 5.000) {
+            return 'Outstanding';
+        } elseif ($rating >= 3.500 && $rating <= 4.499) {
+            return 'Very Satisfactory';
+        } elseif ($rating >= 2.500 && $rating <= 3.499) {
+            return 'Satisfactory';
+        } elseif ($rating >= 1.500 && $rating <= 2.499) {
+            return 'Unsatisfactory';
+        } else {
+            return 'Poor';
+        }
+    }
+
+    /**
+     * Automatically update performance level when numerical rating changes
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (IpcrfRating $rating) {
+            if ($rating->isDirty('numerical_rating')) {
+                $rating->performance_level = $rating->calculatePerformanceLevel();
+            }
+            
+            // Auto-populate school_year from rating_period if not set
+            if (empty($rating->school_year) && !empty($rating->rating_period)) {
+                $rating->school_year = $rating->rating_period;
+            }
+        });
     }
 }

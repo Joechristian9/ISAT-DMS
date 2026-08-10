@@ -41,7 +41,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Toaster } from "@/components/ui/sonner";
-import { Search, Plus, Eye, FileDown, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, Plus, Eye, FileDown } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -51,7 +51,6 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, filte
     const [selectedYear, setSelectedYear] = useState(filters.year || '');
     const [isViewDetailsModalOpen, setIsViewDetailsModalOpen] = useState(false);
     const [selectedRating, setSelectedRating] = useState(null);
-    const [expandedRows, setExpandedRows] = useState([]);
 
     // Show flash messages
     useEffect(() => {
@@ -102,15 +101,6 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, filte
         if (numRating >= 2.5) return 'text-blue-600 bg-blue-50';
         if (numRating >= 1.5) return 'text-orange-600 bg-orange-50';
         return 'text-red-600 bg-red-50';
-    };
-
-    // Toggle row expansion
-    const toggleRowExpansion = (teacherId) => {
-        setExpandedRows(prev => 
-            prev.includes(teacherId) 
-                ? prev.filter(id => id !== teacherId)
-                : [...prev, teacherId]
-        );
     };
 
     // View rating details
@@ -520,12 +510,10 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, filte
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
-                                                <TableHead className="w-12"></TableHead>
                                                 <TableHead>Teacher Name</TableHead>
                                                 <TableHead>Position</TableHead>
                                                 <TableHead className="text-center">Rating</TableHead>
                                                 <TableHead className="text-center">Equivalency</TableHead>
-                                                <TableHead className="text-center">Year</TableHead>
                                                 <TableHead className="text-center">Status</TableHead>
                                                 <TableHead className="text-right">Actions</TableHead>
                                             </TableRow>
@@ -533,128 +521,72 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, filte
                                         <TableBody>
                                             {teachers.data.length === 0 ? (
                                                 <TableRow>
-                                                    <TableCell colSpan={8} className="text-center text-muted-foreground">
+                                                    <TableCell colSpan={6} className="text-center text-muted-foreground">
                                                         No teachers found
                                                     </TableCell>
                                                 </TableRow>
                                             ) : (
                                                 teachers.data.map((teacher) => {
                                                     const latestRating = teacher.ipcrf_ratings?.[0];
-                                                    const isExpanded = expandedRows.includes(teacher.id);
                                                     
                                                     return (
-                                                        <React.Fragment key={teacher.id}>
-                                                            <TableRow>
-                                                                <TableCell>
-                                                                    {teacher.ipcrf_ratings?.length > 0 && (
-                                                                        <Button
-                                                                            size="sm"
-                                                                            variant="ghost"
-                                                                            className="h-6 w-6 p-0"
-                                                                            onClick={() => toggleRowExpansion(teacher.id)}
-                                                                        >
-                                                                            {isExpanded ? (
-                                                                                <ChevronUp className="h-4 w-4" />
-                                                                            ) : (
-                                                                                <ChevronDown className="h-4 w-4" />
-                                                                            )}
-                                                                        </Button>
-                                                                    )}
-                                                                </TableCell>
-                                                                <TableCell className="font-medium">{teacher.name}</TableCell>
-                                                                <TableCell>
-                                                                    <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-blue-50 text-blue-700">
-                                                                        {teacher.current_position?.name || 'No Position'}
+                                                        <TableRow key={teacher.id}>
+                                                            <TableCell className="font-medium">{teacher.name}</TableCell>
+                                                            <TableCell>
+                                                                <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-blue-50 text-blue-700">
+                                                                    {teacher.current_position?.name || 'No Position'}
+                                                                </span>
+                                                            </TableCell>
+                                                            <TableCell className="text-center">
+                                                                {latestRating ? (
+                                                                    <span className="font-semibold text-lg">
+                                                                        {latestRating.numerical_rating ? Number(latestRating.numerical_rating).toFixed(2) : 'N/A'}
                                                                     </span>
-                                                                </TableCell>
-                                                                <TableCell className="text-center">
-                                                                    {latestRating ? (
-                                                                        <span className="font-semibold text-lg">
-                                                                            {latestRating.numerical_rating ? Number(latestRating.numerical_rating).toFixed(2) : 'N/A'}
-                                                                        </span>
-                                                                    ) : (
-                                                                        <span className="text-gray-400 text-sm">No rating</span>
-                                                                    )}
-                                                                </TableCell>
-                                                                <TableCell className="text-center">
-                                                                    {latestRating?.numerical_rating ? (
-                                                                        <span className={`inline-flex px-3 py-1 text-xs font-bold rounded ${getRatingColor(latestRating.numerical_rating)}`}>
-                                                                            {getRatingEquivalency(latestRating.numerical_rating)}
-                                                                        </span>
-                                                                    ) : (
-                                                                        <span className="text-gray-400 text-sm">-</span>
-                                                                    )}
-                                                                </TableCell>
-                                                                <TableCell className="text-center">
-                                                                    {latestRating?.rating_period || '-'}
-                                                                </TableCell>
-                                                                <TableCell className="text-center">
-                                                                    {latestRating ? (
-                                                                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded ${getStatusBadge(latestRating.status)}`}>
-                                                                            {latestRating.status}
-                                                                        </span>
-                                                                    ) : (
-                                                                        <span className="text-gray-400 text-sm">-</span>
-                                                                    )}
-                                                                </TableCell>
-                                                                <TableCell className="text-right">
-                                                                    <div className="flex gap-2 justify-end">
+                                                                ) : (
+                                                                    <span className="text-gray-400 text-sm">No rating</span>
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell className="text-center">
+                                                                {latestRating?.numerical_rating ? (
+                                                                    <span className={`inline-flex px-3 py-1 text-xs font-bold rounded ${getRatingColor(latestRating.numerical_rating)}`}>
+                                                                        {getRatingEquivalency(latestRating.numerical_rating)}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-gray-400 text-sm">-</span>
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell className="text-center">
+                                                                {latestRating ? (
+                                                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded ${getStatusBadge(latestRating.status)}`}>
+                                                                        {latestRating.status}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-gray-400 text-sm">-</span>
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell className="text-right">
+                                                                <div className="flex gap-2 justify-end">
+                                                                    <Button
+                                                                        size="sm"
+                                                                        className="bg-green-600 hover:bg-green-700"
+                                                                        onClick={() => router.visit(route('admin.ipcrf.rate', teacher.id))}
+                                                                    >
+                                                                        <Plus className="h-3 w-3 mr-1" />
+                                                                        Rate
+                                                                    </Button>
+                                                                    {latestRating && (
                                                                         <Button
                                                                             size="sm"
-                                                                            className="bg-green-600 hover:bg-green-700"
-                                                                            onClick={() => router.visit(route('admin.ipcrf.rate', teacher.id))}
+                                                                            variant="outline"
+                                                                            onClick={() => viewRatingDetails(latestRating)}
                                                                         >
-                                                                            <Plus className="h-3 w-3 mr-1" />
-                                                                            Rate
+                                                                            <Eye className="h-3 w-3 mr-1" />
+                                                                            View
                                                                         </Button>
-                                                                        {latestRating && (
-                                                                            <Button
-                                                                                size="sm"
-                                                                                variant="outline"
-                                                                                onClick={() => viewRatingDetails(latestRating)}
-                                                                            >
-                                                                                <Eye className="h-3 w-3 mr-1" />
-                                                                                View
-                                                                            </Button>
-                                                                        )}
-                                                                    </div>
-                                                                </TableCell>
-                                                            </TableRow>
-                                                            
-                                                            {/* Expanded Row - Show all ratings */}
-                                                            {isExpanded && teacher.ipcrf_ratings?.length > 0 && (
-                                                                <TableRow>
-                                                                    <TableCell colSpan={8} className="bg-gray-50">
-                                                                        <div className="p-4">
-                                                                            <h4 className="font-semibold mb-3">Rating History</h4>
-                                                                            <div className="space-y-2">
-                                                                                {teacher.ipcrf_ratings.map((rating) => (
-                                                                                    <div key={rating.id} className="flex items-center justify-between p-3 bg-white rounded border">
-                                                                                        <div className="flex items-center gap-4">
-                                                                                            <span className="font-medium">{rating.rating_period}</span>
-                                                                                            <span className="text-lg font-semibold text-blue-600">
-                                                                                                {rating.numerical_rating ? Number(rating.numerical_rating).toFixed(2) : 'N/A'}
-                                                                                            </span>
-                                                                                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded ${getStatusBadge(rating.status)}`}>
-                                                                                                {rating.status}
-                                                                                            </span>
-                                                                                        </div>
-                                                                                        <Button
-                                                                                            size="sm"
-                                                                                            variant="outline"
-                                                                                            onClick={() => viewRatingDetails(rating)}
-                                                                                        >
-                                                                                            <Eye className="h-3 w-3 mr-1" />
-                                                                                            View Details
-                                                                                        </Button>
-                                                                                    </div>
-                                                                                ))}
-                                                                            </div>
-                                                                        </div>
-                                                                    </TableCell>
-                                                                </TableRow>
-                                                            )}
-                                                        </React.Fragment>
+                                                                    )}
+                                                                </div>
+                                                            </TableCell>
+                                                        </TableRow>
                                                     );
                                                 })
                                             )}

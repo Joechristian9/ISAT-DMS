@@ -1,14 +1,15 @@
 import { Head, useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
-import { Save, Send, FileText } from 'lucide-react';
+import { Save, Send, FileText, Info, XCircle, ArrowLeft } from 'lucide-react';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-export default function Questionnaire({ questionnaire, schoolYear, user }) {
+export default function Questionnaire({ questionnaire, schoolYear, user, kras }) {
     const [currentSection, setCurrentSection] = useState('profile');
     const [currentChallengeKra, setCurrentChallengeKra] = useState(0);
+    const [showInfoModal, setShowInfoModal] = useState(false);
     
     const { data, setData, post, processing, errors } = useForm({
         school_year: schoolYear,
@@ -25,55 +26,13 @@ export default function Questionnaire({ questionnaire, schoolYear, user }) {
         status: 'draft',
     });
 
-    const kraData = [
-        {
-            id: 1,
-            name: 'Content Knowledge and Pedagogy',
-            objectives: [
-                { id: 1, code: '1.1.2', description: 'Applied knowledge of content within and across curriculum teaching areas.' },
-                { id: 2, code: '1.2.2', description: 'Used research-based knowledge and principles of teaching and learning to enhance professional practice.' },
-                { id: 3, code: '1.3.2', description: 'Ensured the positive use of ICT to facilitate the teaching and learning process.' },
-                { id: 4, code: '1.4.2', description: 'Used a range of teaching strategies that enhance learner achievement in literacy and numeracy skills.' },
-                { id: 5, code: '1.7.2', description: 'Used effective verbal and non-verbal classroom communication strategies to support learner understanding, participation, engagement and achievement.' },
-            ]
-        },
-        {
-            id: 2,
-            name: 'Learning Environment & Diversity of Learners',
-            objectives: [
-                { id: 6, code: '2.1.2', description: 'Maintained supportive learning environment that motivate learners to participate, cooperate and collaborate in continued learning.' },
-                { id: 7, code: '2.2.2', description: 'Applied a range of successful strategies that maintain learning environments that motivate learners to work productively by assuming responsibility for their own learning.' },
-                { id: 8, code: '2.3.2', description: 'Designed, adapted and implemented teaching strategies that are responsive to learners with disabilities, giftedness and talents.' },
-                { id: 9, code: '2.4.2', description: 'Planned and delivered teaching strategies that are responsive to the special educational needs of learners in difficult circumstances, including: geographic isolation; chronic illness; displacement due to armed conflict, urban resettlement or disasters; child abuse and child labor practices.' },
-            ]
-        },
-        {
-            id: 3,
-            name: 'Curriculum and Planning & Assessment and Reporting',
-            objectives: [
-                { id: 10, code: '3.1.2', description: 'Adapted and implemented learning programs that ensure relevance and responsiveness to the needs of all learners.' },
-            ]
-        },
-        {
-            id: 4,
-            name: 'Community Linkages and Professional Engagement',
-            objectives: [
-                { id: 11, code: '4.1.2', description: 'Maintained learning environments that are responsive to community contexts.' },
-                { id: 12, code: '4.2.2', description: 'Reviewed regularly personal teaching practice using existing laws and regulations that apply to the teaching profession and the responsibilities specified in the Code of Ethics for Professional Teachers.' },
-                { id: 13, code: '4.3.2', description: 'Complied with and implemented school policies and procedures consistently to foster harmonious relationships with learners, parents, and other stakeholders.' },
-            ]
-        },
-        {
-            id: 5,
-            name: 'Personal Growth and Professional Development',
-            objectives: [
-                { id: 14, code: '5.1.2', description: 'Adopted practices that uphold the dignity of teaching as a profession by exhibiting qualities such as a caring attitude, respect, and integrity.' },
-            ]
-        },
-    ];
+    
+    // Use KRAs from backend (dynamically loaded based on active configuration)
+    const kraData = kras || [];
 
-    const challengesData = [
-        {
+    // Hardcoded challenges for each KRA (for reference)
+    const allChallengesData = {
+        1: { // Content Knowledge and Pedagogy
             kra: 'KRA 1. Content Knowledge and Pedagogy',
             items: [
                 'I have a limited understanding of effective teaching strategies and methods.',
@@ -88,7 +47,7 @@ export default function Questionnaire({ questionnaire, schoolYear, user }) {
                 'I struggle to effectively integrate appropriate instructional technologies and digital resources to enhance content delivery and student engagement.',
             ]
         },
-        {
+        2: { // Learning Environment & Diversity of Learners
             kra: 'KRA 2. Learning Environment & Diversity of Learners',
             items: [
                 'I struggle to establish authority in the classroom, leading to disruptions and a lack of respect from students.',
@@ -108,7 +67,7 @@ export default function Questionnaire({ questionnaire, schoolYear, user }) {
                 'I experience difficulty in implementing consistent classroom routines and behavioral expectations that promote a safe, inclusive, and learner-centered environment.',
             ]
         },
-        {
+        3: { // Curriculum and Planning & Assessment and Reporting
             kra: 'KRA 3. Curriculum and Planning & Assessment and Reporting',
             items: [
                 'I find it difficult to align lesson plans with curriculum standards and learning objectives.',
@@ -128,7 +87,7 @@ export default function Questionnaire({ questionnaire, schoolYear, user }) {
                 'I experience difficulty in contextualizing curriculum content and assessment tasks to make them responsive to learners\' local context and real-life situations.',
             ]
         },
-        {
+        4: { // Community Linkages and Professional Engagement
             kra: 'KRA 4. Community Linkages and Professional Engagement',
             items: [
                 'I have difficulty seeking guidance and mentorship from experienced colleagues and find it very challenging to collaborate with them while maintaining individual productivity.',
@@ -143,7 +102,7 @@ export default function Questionnaire({ questionnaire, schoolYear, user }) {
                 'I find it challenging to balance professional collaboration with administrative tasks and teaching responsibilities.',
             ]
         },
-        {
+        5: { // Personal Growth and Professional Development
             kra: 'KRA 5. Personal Growth and Professional Development',
             items: [
                 'I have been less engaged in regular self-reflection to assess the effectiveness of classroom management strategies.',
@@ -158,7 +117,27 @@ export default function Questionnaire({ questionnaire, schoolYear, user }) {
                 'I encounter challenges in sustaining motivation and commitment to continuous professional growth amid increasing workload demands.',
             ]
         },
-    ];
+    };
+
+    // Generate dynamic challenges based on selected KRAs
+    const challengesData = kraData.map((kra, index) => {
+        // For default KRAs (1-5), use predefined challenges
+        if (typeof kra.id === 'number' && kra.id <= 5 && allChallengesData[kra.id]) {
+            return allChallengesData[kra.id];
+        }
+        
+        // For custom KRAs, create generic challenges
+        return {
+            kra: `KRA ${index + 1}. ${kra.name}`,
+            items: [
+                `I have difficulty implementing strategies related to ${kra.name}.`,
+                `I struggle with meeting the requirements for ${kra.name}.`,
+                `I find it challenging to balance ${kra.name} with other responsibilities.`,
+                `I have limited resources to effectively address ${kra.name}.`,
+                `I experience difficulty in measuring progress in ${kra.name}.`,
+            ]
+        };
+    });
 
     const handleSubmit = (status) => {
         setData('status', status);
@@ -188,22 +167,51 @@ export default function Questionnaire({ questionnaire, schoolYear, user }) {
             
             <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
                 {/* Header */}
-                <div className="bg-gradient-to-r from-green-600 via-green-500 to-emerald-600 shadow-xl border-b-4 border-green-700">
-                    <div className="max-w-7xl mx-auto px-6 py-6">
-                        <div className="flex items-center gap-4">
-                            <div className="relative">
-                                <div className="absolute -inset-2 bg-white/30 rounded-full blur-xl"></div>
-                                <div className="relative bg-white rounded-full p-2 shadow-2xl ring-4 ring-white/50">
-                                    <FileText className="h-12 w-12 text-green-600" />
+                <div className="bg-gradient-to-r from-green-600 via-green-500 to-emerald-600 shadow-xl border-b-4 border-green-700 lg:sticky lg:top-0 z-30">
+                    <div className="max-w-full px-6 py-6">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="relative">
+                                    <div className="absolute -inset-2 bg-white/30 rounded-full blur-xl"></div>
+                                    <div className="relative bg-white rounded-full p-2 shadow-2xl ring-4 ring-white/50">
+                                        <img 
+                                            src="/pictures/isat 1.jpg" 
+                                            alt="ISAT" 
+                                            className="h-16 w-16 rounded-full object-cover"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <h1 className="text-3xl font-extrabold text-white drop-shadow-lg">
+                                        IPCRF QUESTIONNAIRE
+                                    </h1>
+                                    <p className="text-sm text-green-100 font-semibold mt-1">
+                                        Performance Rating & Challenges - SY {schoolYear}
+                                    </p>
                                 </div>
                             </div>
-                            <div>
-                                <h1 className="text-3xl font-extrabold text-white drop-shadow-lg">
-                                    IPCRF QUESTIONNAIRE
-                                </h1>
-                                <p className="text-sm text-green-100 font-semibold mt-1">
-                                    Performance Rating & Challenges - SY {schoolYear}
-                                </p>
+                            
+                            {/* Action Buttons */}
+                            <div className="flex items-center gap-3">
+                                {/* Back to IPCRF Button */}
+                                <a
+                                    href={route('teacher.ipcrf')}
+                                    className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
+                                    title="Back to IPCRF Tool"
+                                >
+                                    <ArrowLeft className="h-5 w-5" />
+                                    <span className="font-semibold">Back to IPCRF</span>
+                                </a>
+                                
+                                {/* Info Button */}
+                                <button
+                                    onClick={() => setShowInfoModal(true)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
+                                    title="Information"
+                                >
+                                    <Info className="h-5 w-5" />
+                                    <span className="font-semibold">Info</span>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -286,16 +294,14 @@ export default function Questionnaire({ questionnaire, schoolYear, user }) {
                                         className="w-full px-4 py-3 text-base font-semibold border-2 border-gray-300 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-200 transition-all bg-white hover:border-green-400 cursor-pointer shadow-sm hover:shadow-md appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e')] bg-[length:1.5em] bg-[right_0.5rem_center] bg-no-repeat pr-12"
                                     >
                                         <option value="" className="text-gray-500">Select Position</option>
-                                        <optgroup label="━━━ Beginning ━━━" className="font-bold text-blue-700 bg-blue-50">
-                                            <option value="T I" className="py-2">T I - Beginning</option>
-                                            <option value="T II" className="py-2">T II - Beginning</option>
-                                            <option value="T III" className="py-2">T III - Beginning</option>
-                                        </optgroup>
-                                        <optgroup label="━━━ Proficient ━━━" className="font-bold text-green-700 bg-green-50">
-                                            <option value="T IV" className="py-2">T IV - Proficient</option>
-                                            <option value="T V" className="py-2">T V - Proficient</option>
-                                            <option value="T VI" className="py-2">T VI - Proficient</option>
-                                            <option value="T VII" className="py-2">T VII - Proficient</option>
+                                        <optgroup label="━━━ Beginning towards Proficient ━━━" className="font-bold text-blue-700 bg-blue-50">
+                                            <option value="T I" className="py-2">T I - Beginning towards Proficient</option>
+                                            <option value="T II" className="py-2">T II - Beginning towards Proficient</option>
+                                            <option value="T III" className="py-2">T III - Beginning towards Proficient</option>
+                                            <option value="T IV" className="py-2">T IV - Beginning towards Proficient</option>
+                                            <option value="T V" className="py-2">T V - Beginning towards Proficient</option>
+                                            <option value="T VI" className="py-2">T VI - Beginning towards Proficient</option>
+                                            <option value="T VII" className="py-2">T VII - Beginning towards Proficient</option>
                                         </optgroup>
                                         <optgroup label="━━━ Highly Proficient ━━━" className="font-bold text-purple-700 bg-purple-50">
                                             <option value="MT I" className="py-2">MT I - Highly Proficient</option>
@@ -381,21 +387,31 @@ export default function Questionnaire({ questionnaire, schoolYear, user }) {
                                 Write your ratings clearly using the following scale: 1-5 (where 5 is the highest).
                             </p>
                             
-                            {kraData.map((kra) => (
+                            {kraData.map((kra, kraIndex) => (
                                 <div key={kra.id} className="mb-8">
-                                    <h3 className="text-xl font-bold text-green-700 mb-4 bg-green-50 p-4 rounded-xl">
-                                        KRA {kra.id}. {kra.name}
+                                    <h3 className="text-xl font-bold text-green-700 mb-4 bg-green-50 p-4 rounded-xl flex items-center gap-2">
+                                        <span>KRA {kraIndex + 1}. {kra.name}</span>
+                                        {kra.is_custom && (
+                                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-700 border border-purple-300">
+                                                Custom
+                                            </span>
+                                        )}
                                     </h3>
                                     <div className="space-y-4">
                                         {kra.objectives.map((obj, idx) => (
                                             <div key={obj.id} className={`p-4 rounded-xl border-2 ${idx % 2 === 0 ? 'bg-green-50' : 'bg-white'}`}>
                                                 <div className="flex items-start gap-4">
-                                                    <div className="flex-shrink-0 w-12 h-12 bg-green-600 text-white rounded-lg flex items-center justify-center font-bold text-lg">
-                                                        {obj.id}
+                                                    <div className={`flex-shrink-0 w-12 h-12 ${obj.is_custom ? 'bg-purple-600' : 'bg-green-600'} text-white rounded-lg flex items-center justify-center font-bold text-sm`}>
+                                                        {idx + 1}
                                                     </div>
                                                     <div className="flex-1">
-                                                        <p className="text-base font-semibold text-gray-900 mb-2">
-                                                            {obj.code}: {obj.description}
+                                                        <p className="text-base font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                                                            <span>{obj.code}: {obj.description}</span>
+                                                            {obj.is_custom && (
+                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700 border border-purple-300">
+                                                                    Custom
+                                                                </span>
+                                                            )}
                                                         </p>
                                                         <div className="flex items-center gap-4">
                                                             <label className="text-base font-bold text-gray-700">Rating:</label>
@@ -559,6 +575,77 @@ export default function Questionnaire({ questionnaire, schoolYear, user }) {
                     </div>
                 </main>
             </div>
+
+            {/* Info Modal */}
+            {showInfoModal && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setShowInfoModal(false)}>
+                    <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                        <div className="bg-gradient-to-r from-green-600 to-emerald-600 px-6 py-4 rounded-t-2xl">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+                                    <Info className="h-6 w-6" />
+                                    About IPCRF Questionnaire
+                                </h3>
+                                <button onClick={() => setShowInfoModal(false)} className="text-white hover:bg-white/20 rounded-lg p-1">
+                                    <XCircle className="h-6 w-6" />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <h4 className="text-lg font-bold text-gray-900 mb-2">What is this page?</h4>
+                                <p className="text-gray-700">
+                                    The IPCRF Questionnaire is a comprehensive assessment tool where you provide information about your teaching profile, rate your performance on Key Result Areas (KRAs), and identify challenges you face in achieving educational objectives.
+                                </p>
+                            </div>
+
+                            <div>
+                                <h4 className="text-lg font-bold text-gray-900 mb-2">Sections to complete:</h4>
+                                <ol className="list-decimal list-inside space-y-2 text-gray-700">
+                                    <li><strong>Teacher Profile:</strong> Your personal and professional information including age, position, degree, years of service, and training attended</li>
+                                    <li><strong>KRA Ratings:</strong> Rate yourself (1-5) on each objective for all 4 Key Result Areas covering content knowledge, learning environment, curriculum planning, and community engagement</li>
+                                    <li><strong>Challenges:</strong> For each KRA, describe the specific challenges or difficulties you encounter in meeting the objectives</li>
+                                </ol>
+                            </div>
+
+                            <div>
+                                <h4 className="text-lg font-bold text-gray-900 mb-2">Rating Scale:</h4>
+                                <div className="bg-gray-50 rounded-lg p-3 space-y-1 text-sm">
+                                    <p><strong>5</strong> - Outstanding: Consistently exceeds expectations</p>
+                                    <p><strong>4</strong> - Very Satisfactory: Frequently exceeds expectations</p>
+                                    <p><strong>3</strong> - Satisfactory: Meets expectations</p>
+                                    <p><strong>2</strong> - Unsatisfactory: Sometimes fails to meet expectations</p>
+                                    <p><strong>1</strong> - Poor: Consistently fails to meet expectations</p>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h4 className="text-lg font-bold text-gray-900 mb-2">How to use:</h4>
+                                <ul className="list-disc list-inside space-y-1 text-gray-700">
+                                    <li>Use the section navigation buttons to move between Profile, KRA Ratings, and Challenges</li>
+                                    <li>Fill out all required fields marked with an asterisk (*)</li>
+                                    <li>Save your progress as a draft at any time</li>
+                                    <li>Submit only when all sections are complete</li>
+                                    <li>You can edit and resubmit until the deadline</li>
+                                </ul>
+                            </div>
+
+                            <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+                                <p className="text-sm text-blue-900">
+                                    <strong>Important:</strong> Be honest and reflective in your self-assessment. This questionnaire helps identify areas for professional development and improvement.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="px-6 py-4 bg-gray-50 rounded-b-2xl flex justify-end">
+                            <Button onClick={() => setShowInfoModal(false)} className="bg-green-600 hover:bg-green-700">
+                                Got it!
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </TeacherLayout>
     );
 }

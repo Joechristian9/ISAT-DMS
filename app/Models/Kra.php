@@ -14,10 +14,13 @@ class Kra extends Model
         'description',
         'order',
         'is_active',
+        'ipcrf_configuration_id',
+        'is_custom',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_custom' => 'boolean',
     ];
 
     public function objectives()

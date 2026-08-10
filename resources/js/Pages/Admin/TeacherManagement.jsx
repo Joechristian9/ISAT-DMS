@@ -640,8 +640,7 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="Acad">Acad</SelectItem>
-                                                    <SelectItem value="Tech">Tech</SelectItem>
-                                                    <SelectItem value="Pro">Pro</SelectItem>
+                                                    <SelectItem value="Tech-Pro">Tech-Pro</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                             {createForm.errors.department && (
@@ -729,8 +728,7 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="Acad">Acad</SelectItem>
-                                                    <SelectItem value="Tech">Tech</SelectItem>
-                                                    <SelectItem value="Pro">Pro</SelectItem>
+                                                    <SelectItem value="Tech-Pro">Tech-Pro</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                             {editForm.errors.department && (

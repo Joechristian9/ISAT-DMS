@@ -6,7 +6,7 @@ import TeacherLayout from '@/Layouts/TeacherLayout';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-export default function TeacherIpcrf({ kras, submissions, schoolYear, user }) {
+export default function TeacherIpcrf({ kras, submissions, schoolYear, user, noActiveConfig, isLocked, message }) {
     const [uploadingFor, setUploadingFor] = useState(null);
     const [currentKraIndex, setCurrentKraIndex] = useState(0);
     const [viewingPdf, setViewingPdf] = useState(null);
@@ -127,12 +127,14 @@ export default function TeacherIpcrf({ kras, submissions, schoolYear, user }) {
         }
     };
 
-    const currentKra = kras[currentKraIndex];
+    const currentKra = kras && kras.length > 0 ? kras[currentKraIndex] : null;
     
     // Calculate global index for current KRA
     let globalStartIndex = 0;
-    for (let i = 0; i < currentKraIndex; i++) {
-        globalStartIndex += kras[i].objectives.length;
+    if (currentKra) {
+        for (let i = 0; i < currentKraIndex; i++) {
+            globalStartIndex += kras[i].objectives.length;
+        }
     }
 
     return (
@@ -174,20 +176,23 @@ export default function TeacherIpcrf({ kras, submissions, schoolYear, user }) {
                                         OFFICIAL ELECTRONIC IPCRF TOOL v4.3
                                     </h1>
                                     <p className="text-sm text-green-100 font-semibold mt-1">
-                                        Proficient Regular Teacher - SY {schoolYear}
+                                        {schoolYear ? `Proficient Regular Teacher - SY ${schoolYear}` : 'IPCRF Submission Portal'}
                                     </p>
                                 </div>
                             </div>
                             
-                            {/* Info Button */}
-                            <button
-                                onClick={() => setShowTeacherInfo(true)}
-                                className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
-                                title="View Teacher Information"
-                            >
-                                <Info className="h-5 w-5" />
-                                <span className="font-semibold">Info</span>
-                            </button>
+                            {/* Action Buttons */}
+                            <div className="flex items-center gap-3">
+                                {/* Info Button */}
+                                <button
+                                    onClick={() => setShowTeacherInfo(true)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
+                                    title="View Teacher Information"
+                                >
+                                    <Info className="h-5 w-5" />
+                                    <span className="font-semibold">Info</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -195,6 +200,46 @@ export default function TeacherIpcrf({ kras, submissions, schoolYear, user }) {
                 {/* Main Content */}
                 <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
+                    {/* No Active Config or Locked Notice */}
+                    {(noActiveConfig || isLocked) && (
+                        <div className={`${noActiveConfig ? 'bg-red-50 border-red-300' : 'bg-yellow-50 border-yellow-300'} border-2 rounded-2xl shadow-xl p-8 mb-6`}>
+                            <div className="flex items-start gap-4">
+                                <div className={`w-14 h-14 ${noActiveConfig ? 'bg-red-100' : 'bg-yellow-100'} rounded-full flex items-center justify-center flex-shrink-0`}>
+                                    <AlertTriangle className={`h-8 w-8 ${noActiveConfig ? 'text-red-600' : 'text-yellow-600'}`} />
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className={`text-2xl font-bold mb-2 ${noActiveConfig ? 'text-red-900' : 'text-yellow-900'}`}>
+                                        {noActiveConfig ? 'No Active IPCRF Configuration' : 'IPCRF Submission Locked'}
+                                    </h3>
+                                    <p className={`text-lg ${noActiveConfig ? 'text-red-700' : 'text-yellow-700'} leading-relaxed`}>
+                                        {message}
+                                    </p>
+                                    {noActiveConfig && (
+                                        <div className="mt-4 p-4 bg-red-100 rounded-lg">
+                                            <p className="text-sm text-red-800">
+                                                <strong>What does this mean?</strong><br />
+                                                The administrator has not set up an active IPCRF configuration for any school year. 
+                                                You cannot submit any documents until an active configuration is available.
+                                            </p>
+                                        </div>
+                                    )}
+                                    {isLocked && (
+                                        <div className="mt-4 p-4 bg-yellow-100 rounded-lg">
+                                            <p className="text-sm text-yellow-800">
+                                                <strong>What does this mean?</strong><br />
+                                                The IPCRF for School Year {schoolYear} has been locked by the administrator. 
+                                                This typically happens during the review or evaluation period. No new submissions or changes are allowed.
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Only show KRA content if config is active and not locked */}
+                    {!noActiveConfig && !isLocked && (
+                    <>
                     {/* KRA Navigation - Enhanced */}
                     <div className="bg-gradient-to-r from-white via-green-50 to-white rounded-2xl shadow-xl p-6 mb-6 border-2 border-green-200 relative overflow-hidden">
                         {/* Decorative elements */}
@@ -436,6 +481,57 @@ export default function TeacherIpcrf({ kras, submissions, schoolYear, user }) {
                             </table>
                         </div>
                     </div>
+
+                    {/* Take Survey Call-to-Action */}
+                    {Object.keys(submissions).length > 0 && (
+                        <div className="mt-8 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-2xl shadow-2xl p-8 border-2 border-blue-300 relative overflow-hidden">
+                            {/* Decorative elements */}
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-400/10 rounded-full blur-3xl"></div>
+                            <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-400/10 rounded-full blur-2xl"></div>
+                            
+                            <div className="relative">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-4 mb-4">
+                                            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-xl">
+                                                <FileText className="h-8 w-8 text-white" />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-3xl font-extrabold text-gray-900 mb-2">Ready for Self-Assessment?</h3>
+                                                <p className="text-lg text-gray-700">Complete the IPCRF Questionnaire to evaluate your performance</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="flex items-start gap-3 p-5 bg-white/80 backdrop-blur rounded-xl border-2 border-blue-200">
+                                            <Info className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
+                                            <div className="text-base text-blue-900">
+                                                <p className="font-semibold mb-2">What is the IPCRF Questionnaire?</p>
+                                                <ul className="list-disc list-inside space-y-1 text-blue-800">
+                                                    <li>Self-rate your performance across all Key Result Areas (KRAs)</li>
+                                                    <li>Provide insights on challenges and training needs</li>
+                                                    <li>Help improve teaching practices and professional development</li>
+                                                    <li>Takes approximately 15-20 minutes to complete</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="ml-8">
+                                        <a
+                                            href={route('teacher.questionnaire')}
+                                            className="inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 text-white text-xl font-bold rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-200 hover:scale-105"
+                                        >
+                                            <FileText className="h-7 w-7" />
+                                            Take Survey
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    </>
+                    )}
                 </main>
 
                 {/* PDF Viewer Modal */}
