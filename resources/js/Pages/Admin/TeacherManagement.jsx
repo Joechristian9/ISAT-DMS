@@ -568,7 +568,7 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
                                                     // Auto-set career stage based on position
                                                     let careerStage = '';
                                                     if (value === 'T1 - T3') {
-                                                        careerStage = 'Beginning towards proficient';
+                                                        careerStage = 'Beginner';
                                                     } else if (value === 'T4 - T7') {
                                                         careerStage = 'Proficient';
                                                     } else if (value === 'MT1 - MT2') {
@@ -640,7 +640,7 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="Acad">Acad</SelectItem>
-                                                    <SelectItem value="Tech">Tech Pro</SelectItem>
+                                                    <SelectItem value="Tech-Pro">Tech-Pro</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                             {createForm.errors.department && (
@@ -728,8 +728,7 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="Acad">Acad</SelectItem>
-                                                    <SelectItem value="Tech">Tech</SelectItem>
-                                                    <SelectItem value="Pro">Pro</SelectItem>
+                                                    <SelectItem value="Tech-Pro">Tech-Pro</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                             {editForm.errors.department && (
@@ -824,7 +823,7 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
                                                 // Auto-set career stage based on position
                                                 let careerStage = '';
                                                 if (value === 'T1 - T3') {
-                                                    careerStage = 'Beginning towards proficient';
+                                                    careerStage = 'Beginner';
                                                 } else if (value === 'T4 - T7') {
                                                     careerStage = 'Proficient';
                                                 } else if (value === 'MT1 - MT2') {

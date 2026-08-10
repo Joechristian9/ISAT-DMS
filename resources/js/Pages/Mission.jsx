@@ -55,7 +55,7 @@ export default function Mission() {
                             
                             <div className="bg-gradient-to-br from-green-50 to-white rounded-2xl p-10 shadow-lg border-2 border-green-100">
                                 <p className="text-2xl text-gray-800 leading-relaxed text-center font-light italic">
-                                    "ISAT commits to produce highly skilled workforce with positive work values and green skills through quality training, innovative research and responsive community engagement."
+                                    "To provide quality, equitable, and culture-based basic education in a safe, motivating environment, supported by nurturing teachers and active stakeholder involvement."
                                 </p>
                             </div>
                         </div>

@@ -1,6 +1,6 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { Head, router } from '@inertiajs/react';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import {
   Breadcrumb,
@@ -35,6 +35,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Toaster } from "@/components/ui/sonner";
 import { 
     Plus, 
@@ -49,17 +50,62 @@ import {
     Save
 } from 'lucide-react';
 
-export default function IpcrfConfiguration({ configurations, currentYear, flash }) {
+export default function IpcrfConfiguration({ configurations, currentYear, defaultKras, flash }) {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
     const [selectedConfig, setSelectedConfig] = useState(null);
     
+    // Custom KRA/Objective states
+    const [customKras, setCustomKras] = useState([]);
+    const [customObjectives, setCustomObjectives] = useState([]);
+    const [showAddKraForm, setShowAddKraForm] = useState(false);
+    const [showAddObjectiveForm, setShowAddObjectiveForm] = useState(false);
+    const [newKra, setNewKra] = useState({ name: '', description: '' });
+    const [newObjective, setNewObjective] = useState({ kra_id: '', code: '', description: '', weight: '7' });
+    
+    // Combine default and custom KRAs, merging custom objectives into default KRAs
+    const availableKras = React.useMemo(() => {
+        if (!defaultKras) return [];
+        
+        // Start with default KRAs
+        const merged = defaultKras.map(kra => {
+            // Find custom objectives for this default KRA
+            const customObjsForThisKra = customObjectives.filter(obj => obj.kra_id === kra.id);
+            
+            if (customObjsForThisKra.length > 0) {
+                // Merge custom objectives with default objectives
+                return {
+                    ...kra,
+                    objectives: [...(kra.objectives || []), ...customObjsForThisKra]
+                };
+            }
+            return kra;
+        });
+        
+        // Add custom KRAs with their objectives
+        customKras.forEach(customKra => {
+            // Find objectives for this custom KRA
+            const objsForCustomKra = customObjectives.filter(obj => obj.kra_id === customKra.id);
+            merged.push({
+                ...customKra,
+                objectives: objsForCustomKra
+            });
+        });
+        
+        return merged;
+    }, [defaultKras, customKras, customObjectives]);
+    
     const [formData, setFormData] = useState({
         school_year: '',
         kra_count: 4,
         objectives_per_kra: [3, 3, 3, 3],
+        selected_objective_ids: [],
+        custom_kras: [],
+        custom_objectives: [],
+        submission_start_date: '',
+        submission_end_date: '',
         notes: '',
     });
 
@@ -78,9 +124,118 @@ export default function IpcrfConfiguration({ configurations, currentYear, flash 
             school_year: '',
             kra_count: 4,
             objectives_per_kra: [3, 3, 3, 3],
+            selected_objective_ids: [],
+            custom_kras: [],
+            custom_objectives: [],
             submission_start_date: '',
             submission_end_date: '',
             notes: '',
+        });
+        setCustomKras([]);
+        setCustomObjectives([]);
+        setShowAddKraForm(false);
+        setShowAddObjectiveForm(false);
+    };
+
+    // Custom KRA handlers
+    const handleAddCustomKra = () => {
+        if (!newKra.name.trim()) {
+            toast.error('KRA name is required');
+            return;
+        }
+        
+        const customKra = {
+            id: `custom_kra_${Date.now()}`,
+            name: newKra.name,
+            description: newKra.description,
+            objectives: [], // Initialize empty objectives array
+            is_custom: true,
+            order: 100 + customKras.length
+        };
+        
+        setCustomKras([...customKras, customKra]);
+        setNewKra({ name: '', description: '' });
+        setShowAddKraForm(false);
+        toast.success('Custom KRA added!');
+    };
+
+    const handleRemoveCustomKra = (kraId) => {
+        setCustomKras(customKras.filter(k => k.id !== kraId));
+        // Also remove objectives for this KRA
+        setCustomObjectives(customObjectives.filter(o => o.kra_id !== kraId));
+        toast.success('Custom KRA removed');
+    };
+
+    // Custom Objective handlers
+    const handleAddCustomObjective = () => {
+        if (!newObjective.kra_id) {
+            toast.error('Please select a KRA');
+            return;
+        }
+        if (!newObjective.code.trim() || !newObjective.description.trim()) {
+            toast.error('Code and description are required');
+            return;
+        }
+        
+        const customObj = {
+            id: `custom_obj_${Date.now()}`,
+            kra_id: newObjective.kra_id,
+            code: newObjective.code,
+            description: newObjective.description,
+            weight: parseFloat(newObjective.weight) || 7,
+            is_custom: true,
+            order: 100
+        };
+        
+        // Add to customObjectives state (availableKras will auto-update via useMemo)
+        setCustomObjectives([...customObjectives, customObj]);
+        
+        // Add to selected objectives automatically
+        setFormData({
+            ...formData,
+            selected_objective_ids: [...formData.selected_objective_ids, customObj.id]
+        });
+        
+        setNewObjective({ kra_id: '', code: '', description: '', weight: '7' });
+        setShowAddObjectiveForm(false);
+        toast.success('Custom objective added!');
+    };
+
+    const handleRemoveCustomObjective = (objId) => {
+        setCustomObjectives(customObjectives.filter(o => o.id !== objId));
+        setFormData({
+            ...formData,
+            selected_objective_ids: formData.selected_objective_ids.filter(id => id !== objId)
+        });
+        toast.success('Custom objective removed');
+    };
+
+    const handleObjectiveSelection = (objectiveId) => {
+        const currentIds = formData.selected_objective_ids || [];
+        const newIds = currentIds.includes(objectiveId)
+            ? currentIds.filter(id => id !== objectiveId)
+            : [...currentIds, objectiveId];
+        
+        setFormData({
+            ...formData,
+            selected_objective_ids: newIds,
+        });
+    };
+
+    const handleSelectAllObjectives = () => {
+        const allObjectiveIds = availableKras.flatMap(kra => 
+            kra.objectives ? kra.objectives.map(obj => obj.id) : []
+        );
+        setFormData({
+            ...formData,
+            selected_objective_ids: allObjectiveIds,
+        });
+    };
+
+    const handleDeselectAllObjectives = () => {
+        setFormData({
+            ...formData,
+            selected_objective_ids: [],
         });
     };
 
@@ -127,15 +282,61 @@ export default function IpcrfConfiguration({ configurations, currentYear, flash 
 
     const openEditModal = (config) => {
         setSelectedConfig(config);
+        
+        // Reset custom states first
+        setCustomKras([]);
+        setCustomObjectives([]);
+        
+        // Load custom KRAs if they exist
+        if (config.custom_kras && config.custom_kras.length > 0) {
+            setCustomKras(config.custom_kras);
+        }
+        
+        // Load custom objectives if they exist (flatten from custom KRAs)
+        if (config.custom_kras && config.custom_kras.length > 0) {
+            const allCustomObjectives = config.custom_kras.flatMap(kra => 
+                kra.objectives ? kra.objectives.map(obj => ({
+                    ...obj,
+                    kra_id: kra.id
+                })) : []
+            );
+            setCustomObjectives(allCustomObjectives);
+        }
+        
         setFormData({
             school_year: config.school_year,
             kra_count: config.kra_count,
             objectives_per_kra: config.objectives_per_kra,
+            selected_objective_ids: config.selected_objective_ids || [],
+            custom_kras: [],
+            custom_objectives: [],
             submission_start_date: config.submission_start_date || '',
             submission_end_date: config.submission_end_date || '',
             notes: config.notes || '',
         });
+        
         setIsEditModalOpen(true);
+    };
+
+    // Get selected objectives with auto-numbering
+    const getSelectedObjectivesWithNumbers = () => {
+        const selectedObjs = [];
+        let counter = 1;
+        
+        availableKras.forEach(kra => {
+            const objectives = kra.objectives || [];
+            objectives.forEach(obj => {
+                if (formData.selected_objective_ids.includes(obj.id)) {
+                    selectedObjs.push({
+                        ...obj,
+                        displayNumber: counter++,
+                        kraName: kra.name,
+                    });
+                }
+            });
+        });
+        
+        return selectedObjs;
     };
 
     const openDeleteModal = (config) => {
@@ -148,7 +349,43 @@ export default function IpcrfConfiguration({ configurations, currentYear, flash 
     };
 
     const handleCreate = () => {
-        router.post(route('admin.ipcrf.configuration.store'), formData, {
+        // Calculate objectives_per_kra based on selected objectives
+        const objectivesPerKra = availableKras.map(kra => {
+            const kraObjectives = kra.objectives || [];
+            const selectedCount = kraObjectives.filter(obj => 
+                formData.selected_objective_ids.includes(obj.id)
+            ).length;
+            return selectedCount;
+        });
+
+        // Prepare custom KRAs data
+        const customKrasData = customKras.map(kra => ({
+            name: kra.name,
+            description: kra.description || ''
+        }));
+
+        // Prepare custom objectives data  
+        const customObjectivesData = customObjectives.map(obj => ({
+            kra_id: obj.kra_id,
+            code: obj.code,
+            description: obj.description,
+            weight: obj.weight
+        }));
+
+        // Filter out custom objective IDs (strings) and only send real objective IDs (integers)
+        const realObjectiveIds = formData.selected_objective_ids.filter(id => 
+            typeof id === 'number' || !id.toString().startsWith('custom_obj_')
+        );
+
+        const dataToSubmit = {
+            ...formData,
+            selected_objective_ids: realObjectiveIds,
+            objectives_per_kra: objectivesPerKra,
+            custom_kras: customKrasData,
+            custom_objectives: customObjectivesData,
+        };
+
+        router.post(route('admin.ipcrf.configuration.store'), dataToSubmit, {
             onSuccess: () => {
                 setIsCreateModalOpen(false);
                 resetForm();
@@ -163,7 +400,43 @@ export default function IpcrfConfiguration({ configurations, currentYear, flash 
     };
 
     const handleUpdate = () => {
-        router.put(route('admin.ipcrf.configuration.update', selectedConfig.id), formData, {
+        // Calculate objectives_per_kra based on selected objectives
+        const objectivesPerKra = availableKras.map(kra => {
+            const kraObjectives = kra.objectives || [];
+            const selectedCount = kraObjectives.filter(obj => 
+                formData.selected_objective_ids.includes(obj.id)
+            ).length;
+            return selectedCount;
+        });
+
+        // Prepare custom KRAs data
+        const customKrasData = customKras.map(kra => ({
+            name: kra.name,
+            description: kra.description || ''
+        }));
+
+        // Prepare custom objectives data  
+        const customObjectivesData = customObjectives.map(obj => ({
+            kra_id: obj.kra_id,
+            code: obj.code,
+            description: obj.description,
+            weight: obj.weight
+        }));
+
+        // Filter out custom objective IDs (strings) and only send real objective IDs (integers)
+        const realObjectiveIds = formData.selected_objective_ids.filter(id => 
+            typeof id === 'number' || !id.toString().startsWith('custom_obj_')
+        );
+
+        const dataToSubmit = {
+            ...formData,
+            selected_objective_ids: realObjectiveIds,
+            objectives_per_kra: objectivesPerKra,
+            custom_kras: customKrasData,
+            custom_objectives: customObjectivesData,
+        };
+
+        router.put(route('admin.ipcrf.configuration.update', selectedConfig.id), dataToSubmit, {
             onSuccess: () => {
                 setIsEditModalOpen(false);
                 setSelectedConfig(null);
@@ -334,7 +607,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, flash 
                                                             </TableCell>
                                                             <TableCell className="text-center">
                                                                 <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-purple-100 text-purple-700 font-bold">
-                                                                    {getTotalObjectives(config.objectives_per_kra)}
+                                                                    {config.selected_objective_ids ? config.selected_objective_ids.length : getTotalObjectives(config.objectives_per_kra)}
                                                                 </span>
                                                             </TableCell>
                                                             <TableCell className="text-center">
@@ -415,15 +688,15 @@ export default function IpcrfConfiguration({ configurations, currentYear, flash 
 
             {/* Create Modal */}
             <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Create New Configuration</DialogTitle>
                         <DialogDescription>
-                            Set up KRA and Objective structure for a school year
+                            Select specific objectives from the available options and optionally add custom KRAs/objectives
                         </DialogDescription>
                     </DialogHeader>
                     
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                         {/* School Year */}
                         <div className="space-y-2">
                             <Label htmlFor="school_year">School Year</Label>
@@ -432,19 +705,6 @@ export default function IpcrfConfiguration({ configurations, currentYear, flash 
                                 value={formData.school_year}
                                 onChange={(e) => setFormData({ ...formData, school_year: e.target.value })}
                                 placeholder="e.g., 2024-2025"
-                            />
-                        </div>
-
-                        {/* KRA Count */}
-                        <div className="space-y-2">
-                            <Label htmlFor="kra_count">Number of KRAs</Label>
-                            <Input
-                                id="kra_count"
-                                type="number"
-                                min="1"
-                                max="10"
-                                value={formData.kra_count}
-                                onChange={(e) => handleKraCountChange(e.target.value)}
                             />
                         </div>
 
@@ -471,25 +731,190 @@ export default function IpcrfConfiguration({ configurations, currentYear, flash 
                             </div>
                         </div>
 
-                        {/* Objectives per KRA */}
-                        <div className="space-y-2">
-                            <Label>Objectives per KRA</Label>
-                            <div className="grid grid-cols-2 gap-3">
-                                {Array.from({ length: formData.kra_count }).map((_, index) => (
-                                    <div key={index} className="flex items-center gap-2">
-                                        <Label className="w-20">KRA {index + 1}:</Label>
-                                        <Input
-                                            type="number"
-                                            min="1"
-                                            max="20"
-                                            value={formData.objectives_per_kra[index]}
-                                            onChange={(e) => handleObjectiveChange(index, e.target.value)}
-                                            className="flex-1"
-                                        />
+                        {/* Objective Selection */}
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <Label className="text-base font-semibold">Select Objectives</Label>
+                                <div className="flex gap-2">
+                                    <Button type="button" size="sm" variant="outline" onClick={handleSelectAllObjectives}>
+                                        Select All
+                                    </Button>
+                                    <Button type="button" size="sm" variant="outline" onClick={handleDeselectAllObjectives}>
+                                        Deselect All
+                                    </Button>
+                                </div>
+                            </div>
+                            
+                            <p className="text-sm text-gray-600">
+                                Selected: {formData.selected_objective_ids.length} objective(s)
+                            </p>
+
+                            {/* Objectives by KRA */}
+                            <div className="border rounded-lg p-4 space-y-4 max-h-96 overflow-y-auto">
+                                {availableKras.map((kra, kraIndex) => (
+                                    <div key={kra.id} className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="font-semibold text-sm text-green-700 bg-green-50 px-3 py-2 rounded">
+                                                KRA {kraIndex + 1}: {kra.name}
+                                            </h4>
+                                            {kra.is_custom && (
+                                                <Button 
+                                                    type="button" 
+                                                    size="sm" 
+                                                    variant="ghost" 
+                                                    onClick={() => handleRemoveCustomKra(kra.id)}
+                                                    className="text-red-600"
+                                                >
+                                                    <Trash2 className="h-3 w-3" />
+                                                </Button>
+                                            )}
+                                        </div>
+                                        <div className="space-y-2 pl-4">
+                                            {kra.objectives && kra.objectives.map((objective) => (
+                                                <div key={objective.id} className="flex items-start gap-3 p-2 hover:bg-gray-50 rounded">
+                                                    <Checkbox
+                                                        id={`obj-${objective.id}`}
+                                                        checked={formData.selected_objective_ids.includes(objective.id)}
+                                                        onCheckedChange={() => handleObjectiveSelection(objective.id)}
+                                                    />
+                                                    <label htmlFor={`obj-${objective.id}`} className="text-sm cursor-pointer flex-1">
+                                                        <span className="font-medium text-blue-600">{objective.code}</span>
+                                                        <span className="text-gray-700"> - {objective.description}</span>
+                                                        {objective.is_custom && (
+                                                            <>
+                                                                <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Custom</span>
+                                                                <Button 
+                                                                    type="button" 
+                                                                    size="sm" 
+                                                                    variant="ghost" 
+                                                                    onClick={() => handleRemoveCustomObjective(objective.id)}
+                                                                    className="ml-2 text-red-600 h-6 w-6 p-0"
+                                                                >
+                                                                    <Trash2 className="h-3 w-3" />
+                                                                </Button>
+                                                            </>
+                                                        )}
+                                                    </label>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
                         </div>
+
+                        {/* Add Custom KRA Button */}
+                        <div className="space-y-2">
+                            {!showAddKraForm ? (
+                                <Button type="button" variant="outline" onClick={() => setShowAddKraForm(true)} className="w-full">
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Add Custom KRA
+                                </Button>
+                            ) : (
+                                <div className="border rounded-lg p-4 space-y-3 bg-purple-50">
+                                    <Label>Add Custom KRA</Label>
+                                    <Input
+                                        placeholder="KRA Name (e.g., Digital Competency)"
+                                        value={newKra.name}
+                                        onChange={(e) => setNewKra({ ...newKra, name: e.target.value })}
+                                    />
+                                    <Textarea
+                                        placeholder="Description (optional)"
+                                        value={newKra.description}
+                                        onChange={(e) => setNewKra({ ...newKra, description: e.target.value })}
+                                        rows={2}
+                                    />
+                                    <div className="flex gap-2">
+                                        <Button type="button" size="sm" onClick={handleAddCustomKra}>
+                                            <Plus className="h-3 w-3 mr-1" />
+                                            Add KRA
+                                        </Button>
+                                        <Button type="button" size="sm" variant="outline" onClick={() => {
+                                            setShowAddKraForm(false);
+                                            setNewKra({ name: '', description: '' });
+                                        }}>
+                                            Cancel
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Add Custom Objective Button */}
+                        <div className="space-y-2">
+                            {!showAddObjectiveForm ? (
+                                <Button type="button" variant="outline" onClick={() => setShowAddObjectiveForm(true)} className="w-full">
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Add Custom Objective
+                                </Button>
+                            ) : (
+                                <div className="border rounded-lg p-4 space-y-3 bg-blue-50">
+                                    <Label>Add Custom Objective</Label>
+                                    <div className="space-y-2">
+                                        <select
+                                            className="w-full border rounded px-3 py-2"
+                                            value={newObjective.kra_id}
+                                            onChange={(e) => setNewObjective({ ...newObjective, kra_id: e.target.value })}
+                                        >
+                                            <option value="">Select KRA</option>
+                                            {availableKras.map((kra, idx) => (
+                                                <option key={kra.id} value={kra.id}>
+                                                    KRA {idx + 1}: {kra.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <Input
+                                            placeholder="Objective Code (e.g., 1.5.2)"
+                                            value={newObjective.code}
+                                            onChange={(e) => setNewObjective({ ...newObjective, code: e.target.value })}
+                                        />
+                                        <Textarea
+                                            placeholder="Objective Description"
+                                            value={newObjective.description}
+                                            onChange={(e) => setNewObjective({ ...newObjective, description: e.target.value })}
+                                            rows={2}
+                                        />
+                                        <Input
+                                            type="number"
+                                            placeholder="Weight (default: 7)"
+                                            value={newObjective.weight}
+                                            onChange={(e) => setNewObjective({ ...newObjective, weight: e.target.value || '7' })}
+                                            step="0.01"
+                                        />
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button type="button" size="sm" onClick={handleAddCustomObjective}>
+                                            <Plus className="h-3 w-3 mr-1" />
+                                            Add Objective
+                                        </Button>
+                                        <Button type="button" size="sm" variant="outline" onClick={() => {
+                                            setShowAddObjectiveForm(false);
+                                            setNewObjective({ kra_id: '', code: '', description: '', weight: '7' });
+                                        }}>
+                                            Cancel
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Selected Objectives Preview */}
+                        {formData.selected_objective_ids.length > 0 && (
+                            <div className="space-y-2">
+                                <Label className="text-base font-semibold">Selected Objectives Preview (Auto-numbered)</Label>
+                                <div className="border rounded-lg p-4 bg-green-50 max-h-48 overflow-y-auto">
+                                    <div className="space-y-1">
+                                        {getSelectedObjectivesWithNumbers().map((obj) => (
+                                            <div key={obj.id} className="text-sm flex gap-2">
+                                                <span className="font-bold text-green-700 min-w-[24px]">{obj.displayNumber}.</span>
+                                                <span className="font-medium text-blue-600">{obj.code}</span>
+                                                <span className="text-gray-600">({obj.kraName})</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Notes */}
                         <div className="space-y-2">
@@ -502,24 +927,17 @@ export default function IpcrfConfiguration({ configurations, currentYear, flash 
                                 rows={3}
                             />
                         </div>
-
-                        {/* Preview Button */}
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={openPreviewModal}
-                            className="w-full"
-                        >
-                            <AlertCircle className="h-4 w-4 mr-2" />
-                            Preview Structure
-                        </Button>
                     </div>
 
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
                             Cancel
                         </Button>
-                        <Button onClick={handleCreate} className="bg-green-600 hover:bg-green-700">
+                        <Button 
+                            onClick={handleCreate} 
+                            className="bg-green-600 hover:bg-green-700"
+                            disabled={formData.selected_objective_ids.length === 0}
+                        >
                             <Save className="h-4 w-4 mr-2" />
                             Create Configuration
                         </Button>
@@ -529,15 +947,15 @@ export default function IpcrfConfiguration({ configurations, currentYear, flash 
 
             {/* Edit Modal */}
             <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Edit Configuration</DialogTitle>
                         <DialogDescription>
-                            Modify KRA and Objective structure for {selectedConfig?.school_year}
+                            Select specific objectives from the available options and optionally add custom KRAs/objectives
                         </DialogDescription>
                     </DialogHeader>
                     
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                         {/* School Year */}
                         <div className="space-y-2">
                             <Label htmlFor="edit_school_year">School Year</Label>
@@ -546,19 +964,6 @@ export default function IpcrfConfiguration({ configurations, currentYear, flash 
                                 value={formData.school_year}
                                 onChange={(e) => setFormData({ ...formData, school_year: e.target.value })}
                                 placeholder="e.g., 2024-2025"
-                            />
-                        </div>
-
-                        {/* KRA Count */}
-                        <div className="space-y-2">
-                            <Label htmlFor="edit_kra_count">Number of KRAs</Label>
-                            <Input
-                                id="edit_kra_count"
-                                type="number"
-                                min="1"
-                                max="10"
-                                value={formData.kra_count}
-                                onChange={(e) => handleKraCountChange(e.target.value)}
                             />
                         </div>
 
@@ -585,25 +990,190 @@ export default function IpcrfConfiguration({ configurations, currentYear, flash 
                             </div>
                         </div>
 
-                        {/* Objectives per KRA */}
-                        <div className="space-y-2">
-                            <Label>Objectives per KRA</Label>
-                            <div className="grid grid-cols-2 gap-3">
-                                {Array.from({ length: formData.kra_count }).map((_, index) => (
-                                    <div key={index} className="flex items-center gap-2">
-                                        <Label className="w-20">KRA {index + 1}:</Label>
-                                        <Input
-                                            type="number"
-                                            min="1"
-                                            max="20"
-                                            value={formData.objectives_per_kra[index]}
-                                            onChange={(e) => handleObjectiveChange(index, e.target.value)}
-                                            className="flex-1"
-                                        />
+                        {/* Objective Selection */}
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <Label className="text-base font-semibold">Select Objectives</Label>
+                                <div className="flex gap-2">
+                                    <Button type="button" size="sm" variant="outline" onClick={handleSelectAllObjectives}>
+                                        Select All
+                                    </Button>
+                                    <Button type="button" size="sm" variant="outline" onClick={handleDeselectAllObjectives}>
+                                        Deselect All
+                                    </Button>
+                                </div>
+                            </div>
+                            
+                            <p className="text-sm text-gray-600">
+                                Selected: {formData.selected_objective_ids.length} objective(s)
+                            </p>
+
+                            {/* Objectives by KRA */}
+                            <div className="border rounded-lg p-4 space-y-4 max-h-96 overflow-y-auto">
+                                {availableKras.map((kra, kraIndex) => (
+                                    <div key={kra.id} className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <h4 className="font-semibold text-sm text-green-700 bg-green-50 px-3 py-2 rounded">
+                                                KRA {kraIndex + 1}: {kra.name}
+                                            </h4>
+                                            {kra.is_custom && (
+                                                <Button 
+                                                    type="button" 
+                                                    size="sm" 
+                                                    variant="ghost" 
+                                                    onClick={() => handleRemoveCustomKra(kra.id)}
+                                                    className="text-red-600"
+                                                >
+                                                    <Trash2 className="h-3 w-3" />
+                                                </Button>
+                                            )}
+                                        </div>
+                                        <div className="space-y-2 pl-4">
+                                            {kra.objectives && kra.objectives.map((objective) => (
+                                                <div key={objective.id} className="flex items-start gap-3 p-2 hover:bg-gray-50 rounded">
+                                                    <Checkbox
+                                                        id={`edit-obj-${objective.id}`}
+                                                        checked={formData.selected_objective_ids.includes(objective.id)}
+                                                        onCheckedChange={() => handleObjectiveSelection(objective.id)}
+                                                    />
+                                                    <label htmlFor={`edit-obj-${objective.id}`} className="text-sm cursor-pointer flex-1">
+                                                        <span className="font-medium text-blue-600">{objective.code}</span>
+                                                        <span className="text-gray-700"> - {objective.description}</span>
+                                                        {objective.is_custom && (
+                                                            <>
+                                                                <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Custom</span>
+                                                                <Button 
+                                                                    type="button" 
+                                                                    size="sm" 
+                                                                    variant="ghost" 
+                                                                    onClick={() => handleRemoveCustomObjective(objective.id)}
+                                                                    className="ml-2 text-red-600 h-6 w-6 p-0"
+                                                                >
+                                                                    <Trash2 className="h-3 w-3" />
+                                                                </Button>
+                                                            </>
+                                                        )}
+                                                    </label>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
                         </div>
+
+                        {/* Add Custom KRA Button */}
+                        <div className="space-y-2">
+                            {!showAddKraForm ? (
+                                <Button type="button" variant="outline" onClick={() => setShowAddKraForm(true)} className="w-full">
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Add Custom KRA
+                                </Button>
+                            ) : (
+                                <div className="border rounded-lg p-4 space-y-3 bg-purple-50">
+                                    <Label>Add Custom KRA</Label>
+                                    <Input
+                                        placeholder="KRA Name (e.g., Digital Competency)"
+                                        value={newKra.name}
+                                        onChange={(e) => setNewKra({ ...newKra, name: e.target.value })}
+                                    />
+                                    <Textarea
+                                        placeholder="Description (optional)"
+                                        value={newKra.description}
+                                        onChange={(e) => setNewKra({ ...newKra, description: e.target.value })}
+                                        rows={2}
+                                    />
+                                    <div className="flex gap-2">
+                                        <Button type="button" size="sm" onClick={handleAddCustomKra}>
+                                            <Plus className="h-3 w-3 mr-1" />
+                                            Add KRA
+                                        </Button>
+                                        <Button type="button" size="sm" variant="outline" onClick={() => {
+                                            setShowAddKraForm(false);
+                                            setNewKra({ name: '', description: '' });
+                                        }}>
+                                            Cancel
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Add Custom Objective Button */}
+                        <div className="space-y-2">
+                            {!showAddObjectiveForm ? (
+                                <Button type="button" variant="outline" onClick={() => setShowAddObjectiveForm(true)} className="w-full">
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Add Custom Objective
+                                </Button>
+                            ) : (
+                                <div className="border rounded-lg p-4 space-y-3 bg-blue-50">
+                                    <Label>Add Custom Objective</Label>
+                                    <div className="space-y-2">
+                                        <select
+                                            className="w-full border rounded px-3 py-2"
+                                            value={newObjective.kra_id}
+                                            onChange={(e) => setNewObjective({ ...newObjective, kra_id: e.target.value })}
+                                        >
+                                            <option value="">Select KRA</option>
+                                            {availableKras.map((kra, idx) => (
+                                                <option key={kra.id} value={kra.id}>
+                                                    KRA {idx + 1}: {kra.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <Input
+                                            placeholder="Objective Code (e.g., 1.5.2)"
+                                            value={newObjective.code}
+                                            onChange={(e) => setNewObjective({ ...newObjective, code: e.target.value })}
+                                        />
+                                        <Textarea
+                                            placeholder="Objective Description"
+                                            value={newObjective.description}
+                                            onChange={(e) => setNewObjective({ ...newObjective, description: e.target.value })}
+                                            rows={2}
+                                        />
+                                        <Input
+                                            type="number"
+                                            placeholder="Weight (default: 7)"
+                                            value={newObjective.weight}
+                                            onChange={(e) => setNewObjective({ ...newObjective, weight: e.target.value || '7' })}
+                                            step="0.01"
+                                        />
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button type="button" size="sm" onClick={handleAddCustomObjective}>
+                                            <Plus className="h-3 w-3 mr-1" />
+                                            Add Objective
+                                        </Button>
+                                        <Button type="button" size="sm" variant="outline" onClick={() => {
+                                            setShowAddObjectiveForm(false);
+                                            setNewObjective({ kra_id: '', code: '', description: '', weight: '7' });
+                                        }}>
+                                            Cancel
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Selected Objectives Preview */}
+                        {formData.selected_objective_ids.length > 0 && (
+                            <div className="space-y-2">
+                                <Label className="text-base font-semibold">Selected Objectives Preview (Auto-numbered)</Label>
+                                <div className="border rounded-lg p-4 bg-green-50 max-h-48 overflow-y-auto">
+                                    <div className="space-y-1">
+                                        {getSelectedObjectivesWithNumbers().map((obj) => (
+                                            <div key={obj.id} className="text-sm flex gap-2">
+                                                <span className="font-bold text-green-700 min-w-[24px]">{obj.displayNumber}.</span>
+                                                <span className="font-medium text-blue-600">{obj.code}</span>
+                                                <span className="text-gray-600">({obj.kraName})</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Notes */}
                         <div className="space-y-2">
@@ -616,17 +1186,6 @@ export default function IpcrfConfiguration({ configurations, currentYear, flash 
                                 rows={3}
                             />
                         </div>
-
-                        {/* Preview Button */}
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={openPreviewModal}
-                            className="w-full"
-                        >
-                            <AlertCircle className="h-4 w-4 mr-2" />
-                            Preview Structure
-                        </Button>
                     </div>
 
                     <DialogFooter>

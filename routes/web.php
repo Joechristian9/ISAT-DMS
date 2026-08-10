@@ -23,6 +23,10 @@ Route::get('/mission', function () {
     return Inertia::render('Mission');
 })->name('mission');
 
+Route::get('/core-values', function () {
+    return Inertia::render('CoreValues');
+})->name('core-values');
+
 Route::get('/dashboard', function () {
     $user = auth()->user();
     

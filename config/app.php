@@ -123,4 +123,42 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Application Vision
+    |--------------------------------------------------------------------------
+    |
+    | This is the vision statement of the organization.
+    |
+    */
+
+    'vision' => 'To produce Filipinos who passionately love their country, realize their full potential, and contribute to nation-building through a continuously improving, learner-centered environment.',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Application Mission
+    |--------------------------------------------------------------------------
+    |
+    | This is the mission statement of the organization.
+    |
+    */
+
+    'mission' => 'To provide quality, equitable, and culture-based basic education in a safe, motivating environment, supported by nurturing teachers and active stakeholder involvement.',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Application Core Values
+    |--------------------------------------------------------------------------
+    |
+    | These are the core values that guide the organization.
+    |
+    */
+
+    'core_values' => [
+        'Maka-Diyos',
+        'Maka-tao',
+        'Makakalikasan',
+        'Makabansa',
+    ],
+
 ];

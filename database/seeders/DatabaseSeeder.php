@@ -21,53 +21,69 @@ class DatabaseSeeder extends Seeder
         $this->call(PositionSeeder::class);
 
         // Create roles
-        $superAdminRole = Role::create(['name' => 'super-admin']);
-        $adminRole = Role::create(['name' => 'admin']);
-        $teacherRole = Role::create(['name' => 'teacher']);
+        $superAdminRole = Role::firstOrCreate(['name' => 'super-admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
+        $teacherRole = Role::firstOrCreate(['name' => 'teacher']);
 
         // Get positions for teachers
-        $beginnerPosition = Position::where('name', 'Beginning Towards Proficient')->first();
+        $beginnerPosition = Position::where('name', 'Beginner')->first();
         $proficientPosition = Position::where('name', 'Proficient')->first();
 
         // Create super admin
-        $superAdmin = User::factory()->create([
-            'name' => 'Super Admin',
-            'email' => 'superadmin@gmail.com',
-            'password' => bcrypt('superadmin123'),
-        ]);
-        $superAdmin->assignRole('super-admin');
+        $superAdmin = User::firstOrCreate(
+            ['email' => 'superadmin@gmail.com'],
+            [
+                'name' => 'Super Admin',
+                'password' => bcrypt('superadmin123'),
+            ]
+        );
+        if (!$superAdmin->hasRole('super-admin')) {
+            $superAdmin->assignRole('super-admin');
+        }
 
         // Create 3 admins
         for ($i = 1; $i <= 3; $i++) {
-            $admin = User::factory()->create([
-                'name' => "Admin {$i}",
-                'email' => "admin{$i}@gmail.com",
-                'password' => bcrypt('admin123'),
-            ]);
-            $admin->assignRole('admin');
+            $admin = User::firstOrCreate(
+                ['email' => "admin$i@gmail.com"],
+                [
+                    'name' => "Admin $i",
+                    'password' => bcrypt('admin123'),
+                ]
+            );
+            if (!$admin->hasRole('admin')) {
+                $admin->assignRole('admin');
+            }
         }
 
         // Create a teacher with Beginner position
-        $teacher = User::factory()->create([
-            'name' => 'Teacher User',
-            'email' => 'teacher@gmail.com',
-            'password' => bcrypt('teacher123'),
-            'current_position_id' => $beginnerPosition->id,
-            'division' => 'Science Department',
-            'teacher_type' => 'Full-time',
-        ]);
-        $teacher->assignRole('teacher');
+        $teacher = User::firstOrCreate(
+            ['email' => 'teacher@gmail.com'],
+            [
+                'name' => 'Teacher User',
+                'password' => bcrypt('teacher123'),
+                'current_position_id' => $beginnerPosition->id,
+                'division' => 'Science Department',
+                'teacher_type' => 'Full-time',
+            ]
+        );
+        if (!$teacher->hasRole('teacher')) {
+            $teacher->assignRole('teacher');
+        }
 
         // Create additional test teacher with Proficient position
-        $teacher2 = User::factory()->create([
-            'name' => 'Test Teacher',
-            'email' => 'test@example.com',
-            'password' => bcrypt('password'),
-            'current_position_id' => $proficientPosition->id,
-            'division' => 'Mathematics Department',
-            'teacher_type' => 'Full-time',
-        ]);
-        $teacher2->assignRole('teacher');
+        $teacher2 = User::firstOrCreate(
+            ['email' => 'test@example.com'],
+            [
+                'name' => 'Test Teacher',
+                'password' => bcrypt('password'),
+                'current_position_id' => $proficientPosition->id,
+                'division' => 'Mathematics Department',
+                'teacher_type' => 'Full-time',
+            ]
+        );
+        if (!$teacher2->hasRole('teacher')) {
+            $teacher2->assignRole('teacher');
+        }
 
         // Seed IPCRF data
         $this->call(IpcrfSeeder::class);
