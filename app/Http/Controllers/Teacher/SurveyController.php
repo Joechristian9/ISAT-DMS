@@ -10,6 +10,11 @@ class SurveyController extends Controller
 {
     public function store(Request $request)
     {
+        \Log::info('Survey submission attempt', [
+            'teacher_id' => auth()->id(),
+            'data' => $request->all()
+        ]);
+
         $request->validate([
             'ipcrf_rating_id' => 'required|exists:ipcrf_ratings,id',
             'school_year' => 'required|string',
@@ -24,10 +29,11 @@ class SurveyController extends Controller
             ->first();
 
         if ($existingSurvey) {
+            \Log::warning('Duplicate survey submission attempt');
             return back()->with('error', 'You have already submitted a survey for this rating.');
         }
 
-        IpcrfSurvey::create([
+        $survey = IpcrfSurvey::create([
             'teacher_id' => auth()->id(),
             'ipcrf_rating_id' => $request->ipcrf_rating_id,
             'school_year' => $request->school_year,
@@ -35,6 +41,8 @@ class SurveyController extends Controller
             'overall_satisfaction' => $request->overall_satisfaction,
             'comments' => $request->comments,
         ]);
+
+        \Log::info('Survey created successfully', ['survey_id' => $survey->id]);
 
         return back()->with('success', 'Thank you for your feedback!');
     }

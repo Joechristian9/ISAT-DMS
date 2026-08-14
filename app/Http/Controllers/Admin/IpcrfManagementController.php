@@ -8,6 +8,7 @@ use App\Models\Objective;
 use App\Models\Competency;
 use App\Models\TeacherSubmission;
 use App\Models\IpcrfRating;
+use App\Models\IpcrfConfiguration;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -361,5 +362,173 @@ class IpcrfManagementController extends Controller
     {
         $objective->delete();
         return back()->with('success', 'Objective deleted successfully!');
+    }
+
+    /**
+     * Add all default objectives from the active IPCRF configuration
+     */
+    public function addAllObjectives(Request $request)
+    {
+        try {
+            // Get the active IPCRF configuration
+            $activeConfig = IpcrfConfiguration::where('is_active', true)->first();
+            
+            if (!$activeConfig) {
+                return back()->with('error', 'No active IPCRF configuration found.');
+            }
+
+            // Get all objectives that are not already added
+            $selectedObjectiveIds = json_decode($activeConfig->selected_objectives, true) ?? [];
+            
+            if (empty($selectedObjectiveIds)) {
+                return back()->with('error', 'No objectives configured in the active IPCRF configuration.');
+            }
+
+            $existingObjectiveIds = Objective::whereIn('id', $selectedObjectiveIds)
+                ->where('is_active', true)
+                ->pluck('id')
+                ->toArray();
+
+            if (count($existingObjectiveIds) === count($selectedObjectiveIds)) {
+                return back()->with('info', 'All objectives are already active.');
+            }
+
+            // Activate all selected objectives
+            Objective::whereIn('id', $selectedObjectiveIds)
+                ->update(['is_active' => true]);
+
+            $addedCount = count($selectedObjectiveIds);
+            
+            return back()->with('success', "Successfully activated {$addedCount} objectives!");
+            
+        } catch (\Exception $e) {
+            return back()->with('error', 'Failed to add all objectives: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Display objectives management interface
+     */
+    public function objectivesIndex(Request $request)
+    {
+        $search = $request->input('search', '');
+        $kraFilter = $request->input('kra', '');
+        $statusFilter = $request->input('status', '');
+
+        $query = Objective::with('kra');
+
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('code', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        if ($kraFilter) {
+            $query->where('kra_id', $kraFilter);
+        }
+
+        if ($statusFilter !== '') {
+            $query->where('is_active', $statusFilter === '1');
+        }
+
+        $objectives = $query->orderBy('kra_id')
+                           ->orderBy('order')
+                           ->get(); // Get all for AJAX requests
+
+        $kras = Kra::orderBy('order')->get();
+
+        // Return JSON for AJAX requests
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'objectives' => $objectives,
+                'kras' => $kras,
+            ]);
+        }
+
+        // Return Inertia response for direct access (fallback)
+        return Inertia::render('Admin/IpcrfConfiguration', [
+            'objectives' => $objectives,
+            'kras' => $kras,
+            'filters' => [
+                'search' => $search,
+                'kra' => $kraFilter,
+                'status' => $statusFilter,
+            ],
+        ]);
+    }
+
+    /**
+     * Store a new objective (management interface)
+     */
+    public function storeObjectiveManagement(Request $request)
+    {
+        $request->validate([
+            'kra_id' => 'required|exists:kras,id',
+            'code' => 'required|string|max:50|unique:objectives,code',
+            'description' => 'required|string|max:1000',
+            'weight' => 'required|numeric|min:0|max:100',
+            'order' => 'required|integer|min:1',
+            'is_active' => 'boolean',
+        ]);
+
+        Objective::create([
+            'kra_id' => $request->kra_id,
+            'code' => $request->code,
+            'description' => $request->description,
+            'weight' => $request->weight,
+            'order' => $request->order,
+            'is_active' => $request->boolean('is_active', true),
+            'is_custom' => true,
+        ]);
+
+        return back()->with('success', 'Objective created successfully!');
+    }
+
+    /**
+     * Update an existing objective (management interface)
+     */
+    public function updateObjectiveManagement(Request $request, Objective $objective)
+    {
+        $request->validate([
+            'kra_id' => 'required|exists:kras,id',
+            'code' => 'required|string|max:50|unique:objectives,code,' . $objective->id,
+            'description' => 'required|string|max:1000',
+            'weight' => 'required|numeric|min:0|max:100',
+            'order' => 'required|integer|min:1',
+            'is_active' => 'boolean',
+        ]);
+
+        $objective->update([
+            'kra_id' => $request->kra_id,
+            'code' => $request->code,
+            'description' => $request->description,
+            'weight' => $request->weight,
+            'order' => $request->order,
+            'is_active' => $request->boolean('is_active'),
+        ]);
+
+        return back()->with('success', 'Objective updated successfully!');
+    }
+
+    /**
+     * Delete an objective (management interface)
+     */
+    public function deleteObjectiveManagement(Objective $objective)
+    {
+        try {
+            // Check if objective is used in any teacher submissions
+            $submissionsCount = TeacherSubmission::where('objective_id', $objective->id)->count();
+            
+            if ($submissionsCount > 0) {
+                return back()->with('error', "Cannot delete objective. It has {$submissionsCount} associated teacher submissions.");
+            }
+
+            $objective->delete();
+            
+            return back()->with('success', 'Objective deleted successfully!');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Failed to delete objective: ' . $e->getMessage());
+        }
     }
 }

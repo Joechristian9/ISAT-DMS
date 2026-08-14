@@ -13,15 +13,18 @@ class TeacherQuestionnaire extends Model
         'teacher_id',
         'school_year',
         'name',
+        'sex',
         'age',
         'teaching_position',
         'years_of_service',
+        'last_ipcr_rating',
         'bachelors_degree',
         'year_level_assignment',
         'subject_taught',
         'trainings_attended',
         'kra_ratings',
         'challenges',
+        'responses',
         'status',
         'submitted_at',
     ];
@@ -29,6 +32,7 @@ class TeacherQuestionnaire extends Model
     protected $casts = [
         'kra_ratings' => 'array',
         'challenges' => 'array',
+        'responses' => 'array',
         'submitted_at' => 'datetime',
     ];
 

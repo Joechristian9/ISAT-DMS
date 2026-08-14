@@ -21,7 +21,7 @@ class Objective extends Model
     ];
 
     protected $casts = [
-        'weight' => 'decimal:2',
+        'weight' => 'decimal:3',
         'is_active' => 'boolean',
         'is_custom' => 'boolean',
     ];

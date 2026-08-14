@@ -25,6 +25,16 @@ class User extends Authenticatable
         'current_position_id',
         'division',
         'teacher_type',
+        'employee_id',
+        'career_stage',
+        'teacher_status',
+        'department',
+        'school_campus',
+        'date_hired',
+        'contact_number',
+        'address',
+        'profile_picture',
+        'is_active',
     ];
 
     /**

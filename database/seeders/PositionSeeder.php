@@ -16,7 +16,7 @@ class PositionSeeder extends Seeder
         Position::whereIn('name', ['Beginner', 'Proficient'])->delete();
 
         $positions = [
-            ['name' => 'Beginning towards Proficient', 'order' => 1, 'parent_position_id' => null],
+            ['name' => 'Beginning Towards Proficient', 'order' => 1, 'parent_position_id' => null],
             ['name' => 'Highly Proficient', 'order' => 2, 'parent_position_id' => null],
             ['name' => 'Distinguished', 'order' => 3, 'parent_position_id' => null],
         ];
@@ -29,7 +29,7 @@ class PositionSeeder extends Seeder
         }
 
         // Set parent relationships for hierarchy
-        $beginningProficient = Position::where('name', 'Beginning towards Proficient')->first();
+        $beginningProficient = Position::where('name', 'Beginning Towards Proficient')->first();
         $highlyProficient = Position::where('name', 'Highly Proficient')->first();
         $distinguished = Position::where('name', 'Distinguished')->first();
 

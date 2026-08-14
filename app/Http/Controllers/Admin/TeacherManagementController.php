@@ -29,7 +29,7 @@ class TeacherManagementController extends Controller
 
         // Filter by position
         if ($request->has('position') && $request->position) {
-            $query->where('current_position_id', $request->position);
+            $query->where('division', 'like', '%"career_stage":"' . $request->position . '"%');
         }
 
         $teachers = $query->paginate(10)->through(function ($teacher) {
@@ -50,9 +50,17 @@ class TeacherManagementController extends Controller
         
         $positions = Position::orderBy('order')->get();
 
+        // Get unique career stages for filter options
+        $careerStages = [
+            'Beginning Towards Proficient',
+            'Highly Proficient', 
+            'Distinguished'
+        ];
+
         return Inertia::render('Admin/TeacherManagement', [
             'teachers' => $teachers,
             'positions' => $positions,
+            'careerStages' => $careerStages,
             'filters' => $request->only(['search', 'position']),
             'flash' => [
                 'success' => session('success'),
@@ -262,5 +270,149 @@ class TeacherManagementController extends Controller
             ->get();
 
         return response()->json($promotions);
+    }
+
+    /**
+     * Display teacher profile
+     */
+    public function profile(User $teacher): Response
+    {
+        if (!$teacher->hasRole('teacher')) {
+            return redirect()->back()->with('error', 'User is not a teacher!');
+        }
+
+        // Load relationships
+        $teacher->load('currentPosition', 'promotions.fromPosition', 'promotions.toPosition');
+
+        // Get IPCRF stats
+        $ipcrfRatings = $teacher->ipcrfRatings()
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $ipcrfStats = [
+            'latest_rating' => $ipcrfRatings->first()?->final_rating ?? null,
+            'latest_rating_date' => $ipcrfRatings->first()?->created_at?->format('M d, Y') ?? null,
+            'average_rating' => $ipcrfRatings->avg('final_rating'),
+            'total_submissions' => $ipcrfRatings->count(),
+            'rating_history' => $ipcrfRatings->map(function ($rating) {
+                return [
+                    'final_rating' => $rating->final_rating,
+                    'created_at' => $rating->created_at,
+                    'school_year' => $rating->school_year ?? null,
+                ];
+            }),
+        ];
+
+        // Get questionnaires
+        $questionnaires = \App\Models\TeacherQuestionnaire::where('teacher_id', $teacher->id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Get signed IPCRFs
+        $signedIpcrfs = \App\Models\SignedIpcrf::where('teacher_id', $teacher->id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Get recent activity
+        $recentActivity = \App\Models\AuditLog::where('user_id', $teacher->id)
+            ->orWhere('description', 'like', '%' . $teacher->name . '%')
+            ->orderBy('created_at', 'desc')
+            ->take(10)
+            ->get();
+
+        // Get objectives and KRAs for objectives management based on active configuration
+        $activeConfig = \App\Models\IpcrfConfiguration::where('is_active', true)->first();
+        
+        if ($activeConfig) {
+            // Get the first N KRAs based on the configuration's kra_count
+            $kras = \App\Models\Kra::where('is_active', true)
+                ->orderBy('order')
+                ->limit($activeConfig->kra_count)
+                ->get();
+
+            // Get objectives that are selected in the active configuration
+            $selectedObjectiveIds = $activeConfig->selected_objective_ids ?? [];
+            $objectives = \App\Models\Objective::with('kra')
+                ->whereIn('id', $selectedObjectiveIds)
+                ->orWhere(function ($query) use ($activeConfig) {
+                    $query->where('ipcrf_configuration_id', $activeConfig->id)
+                          ->where('is_active', true);
+                })
+                ->orderBy('order')
+                ->get();
+        } else {
+            // Fallback to all active KRAs and objectives if no active configuration
+            $kras = \App\Models\Kra::where('is_active', true)
+                ->orderBy('order')
+                ->get();
+
+            $objectives = \App\Models\Objective::with('kra')
+                ->where('is_active', true)
+                ->orderBy('order')
+                ->get();
+        }
+
+        // Decode division data if exists
+        $divisionData = json_decode($teacher->division, true);
+        if (is_array($divisionData)) {
+            $teacher->position_range = $divisionData['position_range'] ?? null;
+            $teacher->career_stage = $divisionData['career_stage'] ?? $teacher->career_stage;
+            $teacher->department = $divisionData['department'] ?? $teacher->department;
+        }
+
+        return Inertia::render('Admin/TeacherProfile', [
+            'teacher' => $teacher,
+            'ipcrfStats' => $ipcrfStats,
+            'promotions' => $teacher->promotions,
+            'questionnaires' => $questionnaires,
+            'signedIpcrfs' => $signedIpcrfs,
+            'recentActivity' => $recentActivity,
+            'objectives' => $objectives,
+            'kras' => $kras,
+        ]);
+    }
+
+    /**
+     * Upload teacher profile photo
+     */
+    public function uploadPhoto(Request $request, User $teacher)
+    {
+        if (!$teacher->hasRole('teacher')) {
+            return redirect()->back()->with('error', 'User is not a teacher!');
+        }
+
+        $validated = $request->validate([
+            'photo' => 'required|image|mimes:jpeg,png,jpg|max:2048', // Max 2MB
+        ], [
+            'photo.required' => 'Please select a photo to upload.',
+            'photo.image' => 'The file must be an image.',
+            'photo.mimes' => 'The photo must be a JPEG, PNG, or JPG file.',
+            'photo.max' => 'The photo size must not exceed 2MB.',
+        ]);
+
+        // Delete old photo if exists
+        if ($teacher->profile_picture && \Storage::disk('public')->exists($teacher->profile_picture)) {
+            \Storage::disk('public')->delete($teacher->profile_picture);
+        }
+
+        // Store new photo
+        $path = $request->file('photo')->store('profile_pictures', 'public');
+
+        // Update teacher record
+        $teacher->update([
+            'profile_picture' => $path,
+        ]);
+
+        // Log the action
+        AuditLogService::log(
+            'teacher_photo_updated',
+            "Updated profile photo for {$teacher->name}",
+            'User',
+            $teacher->id,
+            null,
+            ['photo_path' => $path]
+        );
+
+        return redirect()->back()->with('success', 'Profile photo updated successfully!');
     }
 }

@@ -17,7 +17,7 @@ class Competency extends Model
     ];
 
     protected $casts = [
-        'weight' => 'decimal:2',
+        'weight' => 'decimal:3',
     ];
 
     public function objective()

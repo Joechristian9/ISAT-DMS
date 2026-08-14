@@ -31,6 +31,13 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::post('/ipcrf/objective', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'storeObjective'])->name('ipcrf.objective.store');
     Route::put('/ipcrf/objective/{objective}', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'updateObjective'])->name('ipcrf.objective.update');
     Route::delete('/ipcrf/objective/{objective}', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'deleteObjective'])->name('ipcrf.objective.delete');
+    Route::post('/ipcrf/objectives/add-all', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'addAllObjectives'])->name('ipcrf.objectives.add-all');
+    
+    // Objectives Management (within IPCRF context)
+    Route::get('/ipcrf/objectives', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'objectivesIndex'])->name('ipcrf.objective.index');
+    Route::post('/ipcrf/objectives', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'storeObjectiveManagement'])->name('ipcrf.objective.store');
+    Route::put('/ipcrf/objectives/{objective}', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'updateObjectiveManagement'])->name('ipcrf.objective.update');
+    Route::delete('/ipcrf/objectives/{objective}', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'deleteObjectiveManagement'])->name('ipcrf.objective.delete');
     
     // Signed IPCRF Management
     Route::get('/signed-ipcrf', [\App\Http\Controllers\Admin\SignedIpcrfController::class, 'index'])->name('signed-ipcrf');
@@ -43,6 +50,11 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     // Survey Results
     Route::get('/survey-results', [\App\Http\Controllers\Admin\SurveyController::class, 'index'])->name('survey-results');
     
+    // Questionnaire Results
+    Route::get('/questionnaire-results', [\App\Http\Controllers\Admin\QuestionnaireController::class, 'index'])->name('questionnaire-results');
+    Route::get('/questionnaire/{questionnaire}', [\App\Http\Controllers\Admin\QuestionnaireController::class, 'show'])->name('questionnaire.show');
+    Route::post('/questionnaire/{questionnaire}/status', [\App\Http\Controllers\Admin\QuestionnaireController::class, 'updateStatus'])->name('questionnaire.update-status');
+    
     // Teacher Management
     Route::get('/teachers', [TeacherManagementController::class, 'index'])->name('teachers.index');
     Route::post('/teachers', [TeacherManagementController::class, 'store'])->name('teachers.store');
@@ -51,6 +63,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::post('/teachers/{teacher}/promote', [TeacherManagementController::class, 'promote'])->name('teachers.promote');
     Route::get('/teachers/{teacher}/promotions', [TeacherManagementController::class, 'promotionHistory'])->name('teachers.promotions');
     Route::get('/teachers/{teacher}/promotions/data', [TeacherManagementController::class, 'promotionHistoryData'])->name('teachers.promotions.data');
+    Route::get('/teachers/{teacher}/profile', [TeacherManagementController::class, 'profile'])->name('teachers.profile');
+    Route::post('/teachers/{teacher}/upload-photo', [TeacherManagementController::class, 'uploadPhoto'])->name('teachers.upload-photo');
     
     // Audit Logs
     Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');

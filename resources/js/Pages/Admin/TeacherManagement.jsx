@@ -43,7 +43,7 @@ import { Label } from "@/components/ui/label"
 import { Search, Plus, Edit, Trash2, TrendingUp, History, MoreVertical, Calendar, Award, CheckCircle2, User, Briefcase, Mail, Phone, MapPin, Building, IdCard } from 'lucide-react';
 import { Toaster } from "@/components/ui/sonner"
 
-export default function TeacherManagement({ teachers, positions, filters, flash }) {
+export default function TeacherManagement({ teachers, positions, careerStages, filters, flash }) {
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
     const [selectedPosition, setSelectedPosition] = useState(filters.position || '');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -51,7 +51,6 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
     const [selectedTeacher, setSelectedTeacher] = useState(null);
     const [openMenuRow, setOpenMenuRow] = useState(null);
     const [promotionHistory, setPromotionHistory] = useState([]);
@@ -236,10 +235,9 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
             });
     };
 
-    // Open profile modal
+    // Open profile page
     const openProfileModal = (teacher) => {
-        setSelectedTeacher(teacher);
-        setIsProfileModalOpen(true);
+        router.get(route('admin.teachers.profile', teacher.id));
     };
 
     // Get next position name
@@ -311,7 +309,7 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
                             </div>
                             
                             <div className="w-full md:w-48">
-                                <Label htmlFor="position">Filter by Position</Label>
+                                <Label htmlFor="position">Filter by Career Stage</Label>
                                 <Select value={selectedPosition || "all"} onValueChange={(value) => {
                                     const filterValue = value === "all" ? "" : value;
                                     setSelectedPosition(filterValue);
@@ -323,13 +321,13 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
                                     });
                                 }}>
                                     <SelectTrigger>
-                                        <SelectValue placeholder="All Positions" />
+                                        <SelectValue placeholder="All Career Stages" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="all">All Positions</SelectItem>
-                                        {positions.map((position) => (
-                                            <SelectItem key={position.id} value={position.id.toString()}>
-                                                {position.name}
+                                        <SelectItem value="all">All Career Stages</SelectItem>
+                                        {careerStages?.map((careerStage) => (
+                                            <SelectItem key={careerStage} value={careerStage}>
+                                                {careerStage}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -568,12 +566,10 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
                                                     // Auto-set career stage based on position
                                                     let careerStage = '';
                                                     if (value === 'T1 - T3') {
-                                                        careerStage = 'Beginner';
+                                                        careerStage = 'Beginning Towards Proficient';
                                                     } else if (value === 'T4 - T7') {
-                                                        careerStage = 'Proficient';
-                                                    } else if (value === 'MT1 - MT2') {
                                                         careerStage = 'Highly Proficient';
-                                                    } else if (value === 'MT3 - MT5') {
+                                                    } else if (value === 'MT1 - MT2' || value === 'MT3 - MT5') {
                                                         careerStage = 'Distinguished';
                                                     }
                                                     // Set both values at once
@@ -823,12 +819,10 @@ export default function TeacherManagement({ teachers, positions, filters, flash 
                                                 // Auto-set career stage based on position
                                                 let careerStage = '';
                                                 if (value === 'T1 - T3') {
-                                                    careerStage = 'Beginner';
+                                                    careerStage = 'Beginning Towards Proficient';
                                                 } else if (value === 'T4 - T7') {
-                                                    careerStage = 'Proficient';
-                                                } else if (value === 'MT1 - MT2') {
                                                     careerStage = 'Highly Proficient';
-                                                } else if (value === 'MT3 - MT5') {
+                                                } else if (value === 'MT1 - MT2' || value === 'MT3 - MT5') {
                                                     careerStage = 'Distinguished';
                                                 }
                                                 promoteForm.setData({

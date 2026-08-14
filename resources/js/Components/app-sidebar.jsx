@@ -55,8 +55,8 @@ const data = {
           url: route('admin.ipcrf-history'),
         },
         {
-          title: "Survey Results",
-          url: route('admin.survey-results'),
+          title: "Questionnaire Results",
+          url: route('admin.questionnaire-results'),
         },
         {
           title: "IPCRF Configuration",

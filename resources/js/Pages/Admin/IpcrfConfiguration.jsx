@@ -37,6 +37,20 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Toaster } from "@/components/ui/sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
     Plus, 
     Edit, 
@@ -47,7 +61,9 @@ import {
     XCircle,
     Settings,
     AlertCircle,
-    Save
+    Save,
+    Target,
+    MoreVertical
 } from 'lucide-react';
 
 export default function IpcrfConfiguration({ configurations, currentYear, defaultKras, flash }) {
@@ -55,6 +71,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+    const [isObjectivesModalOpen, setIsObjectivesModalOpen] = useState(false);
     const [selectedConfig, setSelectedConfig] = useState(null);
     
     // Custom KRA/Objective states
@@ -63,7 +80,28 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
     const [showAddKraForm, setShowAddKraForm] = useState(false);
     const [showAddObjectiveForm, setShowAddObjectiveForm] = useState(false);
     const [newKra, setNewKra] = useState({ name: '', description: '' });
-    const [newObjective, setNewObjective] = useState({ kra_id: '', code: '', description: '', weight: '7' });
+    const [newObjective, setNewObjective] = useState({ kra_id: '', code: '', description: '', weight: '7.143' });
+    
+    // Edit states
+    const [editingKra, setEditingKra] = useState(null);
+    const [editingObjective, setEditingObjective] = useState(null);
+    const [editKraData, setEditKraData] = useState({ name: '', description: '' });
+    const [editObjectiveData, setEditObjectiveData] = useState({ kra_id: '', code: '', description: '', weight: '' });
+    
+    // Objectives Management states
+    const [objectivesData, setObjectivesData] = useState([]);
+    const [showAddObjectiveModal, setShowAddObjectiveModal] = useState(false);
+    const [showEditObjectiveModal, setShowEditObjectiveModal] = useState(false);
+    const [showDeleteObjectiveModal, setShowDeleteObjectiveModal] = useState(false);
+    const [selectedObjective, setSelectedObjective] = useState(null);
+    const [objectiveFormData, setObjectiveFormData] = useState({
+        kra_id: '',
+        code: '',
+        description: '',
+        weight: '',
+        order: '',
+        is_active: true,
+    });
     
     // Combine default and custom KRAs, merging custom objectives into default KRAs
     const availableKras = React.useMemo(() => {
@@ -166,6 +204,37 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
         toast.success('Custom KRA removed');
     };
 
+    // Edit KRA handlers
+    const handleEditCustomKra = (kra) => {
+        setEditingKra(kra.id);
+        setEditKraData({
+            name: kra.name,
+            description: kra.description || ''
+        });
+    };
+
+    const handleSaveKraEdit = () => {
+        if (!editKraData.name.trim()) {
+            toast.error('KRA name is required');
+            return;
+        }
+
+        setCustomKras(customKras.map(kra => 
+            kra.id === editingKra 
+                ? { ...kra, name: editKraData.name, description: editKraData.description }
+                : kra
+        ));
+        
+        setEditingKra(null);
+        setEditKraData({ name: '', description: '' });
+        toast.success('KRA updated successfully!');
+    };
+
+    const handleCancelKraEdit = () => {
+        setEditingKra(null);
+        setEditKraData({ name: '', description: '' });
+    };
+
     // Custom Objective handlers
     const handleAddCustomObjective = () => {
         if (!newObjective.kra_id) {
@@ -182,7 +251,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
             kra_id: newObjective.kra_id,
             code: newObjective.code,
             description: newObjective.description,
-            weight: parseFloat(newObjective.weight) || 7,
+            weight: parseFloat(newObjective.weight) || 7.143,
             is_custom: true,
             order: 100
         };
@@ -196,7 +265,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
             selected_objective_ids: [...formData.selected_objective_ids, customObj.id]
         });
         
-        setNewObjective({ kra_id: '', code: '', description: '', weight: '7' });
+        setNewObjective({ kra_id: '', code: '', description: '', weight: '7.143' });
         setShowAddObjectiveForm(false);
         toast.success('Custom objective added!');
     };
@@ -208,6 +277,49 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
             selected_objective_ids: formData.selected_objective_ids.filter(id => id !== objId)
         });
         toast.success('Custom objective removed');
+    };
+
+    // Edit Objective handlers
+    const handleEditCustomObjective = (objective) => {
+        setEditingObjective(objective.id);
+        setEditObjectiveData({
+            kra_id: objective.kra_id,
+            code: objective.code,
+            description: objective.description,
+            weight: objective.weight.toString()
+        });
+    };
+
+    const handleSaveObjectiveEdit = () => {
+        if (!editObjectiveData.kra_id) {
+            toast.error('Please select a KRA');
+            return;
+        }
+        if (!editObjectiveData.code.trim() || !editObjectiveData.description.trim()) {
+            toast.error('Code and description are required');
+            return;
+        }
+
+        setCustomObjectives(customObjectives.map(obj => 
+            obj.id === editingObjective 
+                ? { 
+                    ...obj, 
+                    kra_id: editObjectiveData.kra_id,
+                    code: editObjectiveData.code,
+                    description: editObjectiveData.description,
+                    weight: parseFloat(editObjectiveData.weight) || 7.143
+                }
+                : obj
+        ));
+        
+        setEditingObjective(null);
+        setEditObjectiveData({ kra_id: '', code: '', description: '', weight: '' });
+        toast.success('Objective updated successfully!');
+    };
+
+    const handleCancelObjectiveEdit = () => {
+        setEditingObjective(null);
+        setEditObjectiveData({ kra_id: '', code: '', description: '', weight: '' });
     };
 
     const handleObjectiveSelection = (objectiveId) => {
@@ -498,6 +610,120 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
         });
     };
 
+    // Objectives Management Functions
+    const openObjectivesModal = () => {
+        // Fetch objectives data when opening modal
+        fetch('/admin/ipcrf/objectives', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                setObjectivesData(data.objectives || []);
+                setIsObjectivesModalOpen(true);
+            })
+            .catch(error => {
+                console.error('Fetch error:', error);
+                toast.error('Failed to load objectives data: ' + error.message);
+            });
+    };
+
+    const handleAddObjective = () => {
+        router.post('/admin/ipcrf/objectives', objectiveFormData, {
+            onSuccess: () => {
+                setShowAddObjectiveModal(false);
+                setObjectiveFormData({
+                    kra_id: '',
+                    code: '',
+                    description: '',
+                    weight: '',
+                    order: '',
+                    is_active: true,
+                });
+                toast.success('Objective added successfully!');
+                // Refresh objectives data
+                openObjectivesModal();
+            },
+            onError: (errors) => {
+                Object.keys(errors).forEach((field) => {
+                    toast.error(errors[field]);
+                });
+            },
+        });
+    };
+
+    const handleEditObjective = (objective) => {
+        setSelectedObjective(objective);
+        setObjectiveFormData({
+            kra_id: objective.kra_id,
+            code: objective.code,
+            description: objective.description,
+            weight: objective.weight,
+            order: objective.order,
+            is_active: objective.is_active,
+        });
+        setShowEditObjectiveModal(true);
+    };
+
+    const handleUpdateObjective = () => {
+        router.put(`/admin/ipcrf/objectives/${selectedObjective.id}`, objectiveFormData, {
+            onSuccess: () => {
+                setShowEditObjectiveModal(false);
+                setSelectedObjective(null);
+                setObjectiveFormData({
+                    kra_id: '',
+                    code: '',
+                    description: '',
+                    weight: '',
+                    order: '',
+                    is_active: true,
+                });
+                toast.success('Objective updated successfully!');
+                // Refresh objectives data
+                openObjectivesModal();
+            },
+            onError: (errors) => {
+                Object.keys(errors).forEach((field) => {
+                    toast.error(errors[field]);
+                });
+            },
+        });
+    };
+
+    const handleDeleteObjective = (objective) => {
+        setSelectedObjective(objective);
+        setShowDeleteObjectiveModal(true);
+    };
+
+    const confirmDeleteObjective = () => {
+        router.delete(`/admin/ipcrf/objectives/${selectedObjective.id}`, {
+            onSuccess: () => {
+                setShowDeleteObjectiveModal(false);
+                setSelectedObjective(null);
+                toast.success('Objective deleted successfully!');
+                // Refresh objectives data
+                openObjectivesModal();
+            },
+            onError: (errors) => {
+                if (typeof errors === 'object') {
+                    Object.keys(errors).forEach((field) => {
+                        toast.error(errors[field]);
+                    });
+                }
+            },
+        });
+    };
+
     const getTotalObjectives = (objectives) => {
         return objectives.reduce((sum, count) => sum + count, 0);
     };
@@ -671,6 +897,23 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                                                     >
                                                                         <Trash2 className="h-3 w-3" />
                                                                     </Button>
+                                                                    <DropdownMenu>
+                                                                        <DropdownMenuTrigger asChild>
+                                                                            <Button
+                                                                                size="sm"
+                                                                                variant="outline"
+                                                                                className="h-8 w-8 p-0"
+                                                                            >
+                                                                                <MoreVertical className="h-3 w-3" />
+                                                                            </Button>
+                                                                        </DropdownMenuTrigger>
+                                                                        <DropdownMenuContent align="end">
+                                                                            <DropdownMenuItem onClick={openObjectivesModal}>
+                                                                                <Target className="mr-2 h-4 w-4" />
+                                                                                Manage Objectives
+                                                                            </DropdownMenuItem>
+                                                                        </DropdownMenuContent>
+                                                                    </DropdownMenu>
                                                                 </div>
                                                             </TableCell>
                                                         </TableRow>
@@ -754,19 +997,71 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                 {availableKras.map((kra, kraIndex) => (
                                     <div key={kra.id} className="space-y-2">
                                         <div className="flex items-center justify-between">
-                                            <h4 className="font-semibold text-sm text-green-700 bg-green-50 px-3 py-2 rounded">
-                                                KRA {kraIndex + 1}: {kra.name}
-                                            </h4>
-                                            {kra.is_custom && (
-                                                <Button 
-                                                    type="button" 
-                                                    size="sm" 
-                                                    variant="ghost" 
-                                                    onClick={() => handleRemoveCustomKra(kra.id)}
-                                                    className="text-red-600"
-                                                >
-                                                    <Trash2 className="h-3 w-3" />
-                                                </Button>
+                                            {editingKra === kra.id ? (
+                                                <div className="flex-1 space-y-2">
+                                                    <Input
+                                                        value={editKraData.name}
+                                                        onChange={(e) => setEditKraData({ ...editKraData, name: e.target.value })}
+                                                        placeholder="KRA Name"
+                                                        className="text-sm"
+                                                    />
+                                                    <Textarea
+                                                        value={editKraData.description}
+                                                        onChange={(e) => setEditKraData({ ...editKraData, description: e.target.value })}
+                                                        placeholder="Description (optional)"
+                                                        rows={2}
+                                                        className="text-sm"
+                                                    />
+                                                    <div className="flex gap-2">
+                                                        <Button 
+                                                            type="button" 
+                                                            size="sm" 
+                                                            onClick={handleSaveKraEdit}
+                                                            className="bg-green-600 hover:bg-green-700 text-white"
+                                                        >
+                                                            <Save className="h-3 w-3 mr-1" />
+                                                            Save
+                                                        </Button>
+                                                        <Button 
+                                                            type="button" 
+                                                            size="sm" 
+                                                            variant="outline"
+                                                            onClick={handleCancelKraEdit}
+                                                        >
+                                                            Cancel
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <h4 className="font-semibold text-sm text-green-700 bg-green-50 px-3 py-2 rounded">
+                                                        KRA {kraIndex + 1}: {kra.name}
+                                                    </h4>
+                                                    {kra.is_custom && (
+                                                        <div className="flex gap-1">
+                                                            <Button 
+                                                                type="button" 
+                                                                size="sm" 
+                                                                variant="ghost" 
+                                                                onClick={() => handleEditCustomKra(kra)}
+                                                                className="text-blue-600"
+                                                                title="Edit KRA"
+                                                            >
+                                                                <Edit className="h-3 w-3" />
+                                                            </Button>
+                                                            <Button 
+                                                                type="button" 
+                                                                size="sm" 
+                                                                variant="ghost" 
+                                                                onClick={() => handleRemoveCustomKra(kra.id)}
+                                                                className="text-red-600"
+                                                                title="Delete KRA"
+                                                            >
+                                                                <Trash2 className="h-3 w-3" />
+                                                            </Button>
+                                                        </div>
+                                                    )}
+                                                </>
                                             )}
                                         </div>
                                         <div className="space-y-2 pl-4">
@@ -777,24 +1072,92 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                                         checked={formData.selected_objective_ids.includes(objective.id)}
                                                         onCheckedChange={() => handleObjectiveSelection(objective.id)}
                                                     />
-                                                    <label htmlFor={`obj-${objective.id}`} className="text-sm cursor-pointer flex-1">
-                                                        <span className="font-medium text-blue-600">{objective.code}</span>
-                                                        <span className="text-gray-700"> - {objective.description}</span>
-                                                        {objective.is_custom && (
-                                                            <>
-                                                                <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Custom</span>
+                                                    {editingObjective === objective.id ? (
+                                                        <div className="flex-1 space-y-2">
+                                                            <select
+                                                                className="w-full border rounded px-3 py-1 text-sm"
+                                                                value={editObjectiveData.kra_id}
+                                                                onChange={(e) => setEditObjectiveData({ ...editObjectiveData, kra_id: e.target.value })}
+                                                            >
+                                                                <option value="">Select KRA</option>
+                                                                {availableKras.map((kraOption, idx) => (
+                                                                    <option key={kraOption.id} value={kraOption.id}>
+                                                                        KRA {idx + 1}: {kraOption.name}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                            <Input
+                                                                value={editObjectiveData.code}
+                                                                onChange={(e) => setEditObjectiveData({ ...editObjectiveData, code: e.target.value })}
+                                                                placeholder="Objective Code"
+                                                                className="text-sm"
+                                                            />
+                                                            <Textarea
+                                                                value={editObjectiveData.description}
+                                                                onChange={(e) => setEditObjectiveData({ ...editObjectiveData, description: e.target.value })}
+                                                                placeholder="Objective Description"
+                                                                rows={2}
+                                                                className="text-sm"
+                                                            />
+                                                            <Input
+                                                                type="number"
+                                                                step="0.001"
+                                                                value={editObjectiveData.weight}
+                                                                onChange={(e) => setEditObjectiveData({ ...editObjectiveData, weight: e.target.value })}
+                                                                placeholder="Weight (e.g., 7.143)"
+                                                                className="text-sm"
+                                                            />
+                                                            <div className="flex gap-2">
                                                                 <Button 
                                                                     type="button" 
                                                                     size="sm" 
-                                                                    variant="ghost" 
-                                                                    onClick={() => handleRemoveCustomObjective(objective.id)}
-                                                                    className="ml-2 text-red-600 h-6 w-6 p-0"
+                                                                    onClick={handleSaveObjectiveEdit}
+                                                                    className="bg-green-600 hover:bg-green-700 text-white"
                                                                 >
-                                                                    <Trash2 className="h-3 w-3" />
+                                                                    <Save className="h-3 w-3 mr-1" />
+                                                                    Save
                                                                 </Button>
-                                                            </>
-                                                        )}
-                                                    </label>
+                                                                <Button 
+                                                                    type="button" 
+                                                                    size="sm" 
+                                                                    variant="outline"
+                                                                    onClick={handleCancelObjectiveEdit}
+                                                                >
+                                                                    Cancel
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <label htmlFor={`obj-${objective.id}`} className="text-sm cursor-pointer flex-1">
+                                                            <span className="font-medium text-blue-600">{objective.code}</span>
+                                                            <span className="text-gray-700"> - {objective.description}</span>
+                                                            {objective.is_custom && (
+                                                                <>
+                                                                    <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Custom</span>
+                                                                    <Button 
+                                                                        type="button" 
+                                                                        size="sm" 
+                                                                        variant="ghost" 
+                                                                        onClick={() => handleEditCustomObjective(objective)}
+                                                                        className="ml-2 text-blue-600 h-6 w-6 p-0"
+                                                                        title="Edit Objective"
+                                                                    >
+                                                                        <Edit className="h-3 w-3" />
+                                                                    </Button>
+                                                                    <Button 
+                                                                        type="button" 
+                                                                        size="sm" 
+                                                                        variant="ghost" 
+                                                                        onClick={() => handleRemoveCustomObjective(objective.id)}
+                                                                        className="ml-1 text-red-600 h-6 w-6 p-0"
+                                                                        title="Delete Objective"
+                                                                    >
+                                                                        <Trash2 className="h-3 w-3" />
+                                                                    </Button>
+                                                                </>
+                                                            )}
+                                                        </label>
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>
@@ -876,10 +1239,10 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                         />
                                         <Input
                                             type="number"
-                                            placeholder="Weight (default: 7)"
+                                            placeholder="Weight (default: 7.143)"
                                             value={newObjective.weight}
-                                            onChange={(e) => setNewObjective({ ...newObjective, weight: e.target.value || '7' })}
-                                            step="0.01"
+                                            onChange={(e) => setNewObjective({ ...newObjective, weight: e.target.value || '7.143' })}
+                                            step="0.001"
                                         />
                                     </div>
                                     <div className="flex gap-2">
@@ -889,7 +1252,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                         </Button>
                                         <Button type="button" size="sm" variant="outline" onClick={() => {
                                             setShowAddObjectiveForm(false);
-                                            setNewObjective({ kra_id: '', code: '', description: '', weight: '7' });
+                                            setNewObjective({ kra_id: '', code: '', description: '', weight: '7.143' });
                                         }}>
                                             Cancel
                                         </Button>
@@ -1013,19 +1376,71 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                 {availableKras.map((kra, kraIndex) => (
                                     <div key={kra.id} className="space-y-2">
                                         <div className="flex items-center justify-between">
-                                            <h4 className="font-semibold text-sm text-green-700 bg-green-50 px-3 py-2 rounded">
-                                                KRA {kraIndex + 1}: {kra.name}
-                                            </h4>
-                                            {kra.is_custom && (
-                                                <Button 
-                                                    type="button" 
-                                                    size="sm" 
-                                                    variant="ghost" 
-                                                    onClick={() => handleRemoveCustomKra(kra.id)}
-                                                    className="text-red-600"
-                                                >
-                                                    <Trash2 className="h-3 w-3" />
-                                                </Button>
+                                            {editingKra === kra.id ? (
+                                                <div className="flex-1 space-y-2">
+                                                    <Input
+                                                        value={editKraData.name}
+                                                        onChange={(e) => setEditKraData({ ...editKraData, name: e.target.value })}
+                                                        placeholder="KRA Name"
+                                                        className="text-sm"
+                                                    />
+                                                    <Textarea
+                                                        value={editKraData.description}
+                                                        onChange={(e) => setEditKraData({ ...editKraData, description: e.target.value })}
+                                                        placeholder="Description (optional)"
+                                                        rows={2}
+                                                        className="text-sm"
+                                                    />
+                                                    <div className="flex gap-2">
+                                                        <Button 
+                                                            type="button" 
+                                                            size="sm" 
+                                                            onClick={handleSaveKraEdit}
+                                                            className="bg-green-600 hover:bg-green-700 text-white"
+                                                        >
+                                                            <Save className="h-3 w-3 mr-1" />
+                                                            Save
+                                                        </Button>
+                                                        <Button 
+                                                            type="button" 
+                                                            size="sm" 
+                                                            variant="outline"
+                                                            onClick={handleCancelKraEdit}
+                                                        >
+                                                            Cancel
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <h4 className="font-semibold text-sm text-green-700 bg-green-50 px-3 py-2 rounded">
+                                                        KRA {kraIndex + 1}: {kra.name}
+                                                    </h4>
+                                                    {kra.is_custom && (
+                                                        <div className="flex gap-1">
+                                                            <Button 
+                                                                type="button" 
+                                                                size="sm" 
+                                                                variant="ghost" 
+                                                                onClick={() => handleEditCustomKra(kra)}
+                                                                className="text-blue-600"
+                                                                title="Edit KRA"
+                                                            >
+                                                                <Edit className="h-3 w-3" />
+                                                            </Button>
+                                                            <Button 
+                                                                type="button" 
+                                                                size="sm" 
+                                                                variant="ghost" 
+                                                                onClick={() => handleRemoveCustomKra(kra.id)}
+                                                                className="text-red-600"
+                                                                title="Delete KRA"
+                                                            >
+                                                                <Trash2 className="h-3 w-3" />
+                                                            </Button>
+                                                        </div>
+                                                    )}
+                                                </>
                                             )}
                                         </div>
                                         <div className="space-y-2 pl-4">
@@ -1036,24 +1451,92 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                                         checked={formData.selected_objective_ids.includes(objective.id)}
                                                         onCheckedChange={() => handleObjectiveSelection(objective.id)}
                                                     />
-                                                    <label htmlFor={`edit-obj-${objective.id}`} className="text-sm cursor-pointer flex-1">
-                                                        <span className="font-medium text-blue-600">{objective.code}</span>
-                                                        <span className="text-gray-700"> - {objective.description}</span>
-                                                        {objective.is_custom && (
-                                                            <>
-                                                                <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Custom</span>
+                                                    {editingObjective === objective.id ? (
+                                                        <div className="flex-1 space-y-2">
+                                                            <select
+                                                                className="w-full border rounded px-3 py-1 text-sm"
+                                                                value={editObjectiveData.kra_id}
+                                                                onChange={(e) => setEditObjectiveData({ ...editObjectiveData, kra_id: e.target.value })}
+                                                            >
+                                                                <option value="">Select KRA</option>
+                                                                {availableKras.map((kraOption, idx) => (
+                                                                    <option key={kraOption.id} value={kraOption.id}>
+                                                                        KRA {idx + 1}: {kraOption.name}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                            <Input
+                                                                value={editObjectiveData.code}
+                                                                onChange={(e) => setEditObjectiveData({ ...editObjectiveData, code: e.target.value })}
+                                                                placeholder="Objective Code"
+                                                                className="text-sm"
+                                                            />
+                                                            <Textarea
+                                                                value={editObjectiveData.description}
+                                                                onChange={(e) => setEditObjectiveData({ ...editObjectiveData, description: e.target.value })}
+                                                                placeholder="Objective Description"
+                                                                rows={2}
+                                                                className="text-sm"
+                                                            />
+                                                            <Input
+                                                                type="number"
+                                                                step="0.001"
+                                                                value={editObjectiveData.weight}
+                                                                onChange={(e) => setEditObjectiveData({ ...editObjectiveData, weight: e.target.value })}
+                                                                placeholder="Weight (e.g., 7.143)"
+                                                                className="text-sm"
+                                                            />
+                                                            <div className="flex gap-2">
                                                                 <Button 
                                                                     type="button" 
                                                                     size="sm" 
-                                                                    variant="ghost" 
-                                                                    onClick={() => handleRemoveCustomObjective(objective.id)}
-                                                                    className="ml-2 text-red-600 h-6 w-6 p-0"
+                                                                    onClick={handleSaveObjectiveEdit}
+                                                                    className="bg-green-600 hover:bg-green-700 text-white"
                                                                 >
-                                                                    <Trash2 className="h-3 w-3" />
+                                                                    <Save className="h-3 w-3 mr-1" />
+                                                                    Save
                                                                 </Button>
-                                                            </>
-                                                        )}
-                                                    </label>
+                                                                <Button 
+                                                                    type="button" 
+                                                                    size="sm" 
+                                                                    variant="outline"
+                                                                    onClick={handleCancelObjectiveEdit}
+                                                                >
+                                                                    Cancel
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <label htmlFor={`edit-obj-${objective.id}`} className="text-sm cursor-pointer flex-1">
+                                                            <span className="font-medium text-blue-600">{objective.code}</span>
+                                                            <span className="text-gray-700"> - {objective.description}</span>
+                                                            {objective.is_custom && (
+                                                                <>
+                                                                    <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Custom</span>
+                                                                    <Button 
+                                                                        type="button" 
+                                                                        size="sm" 
+                                                                        variant="ghost" 
+                                                                        onClick={() => handleEditCustomObjective(objective)}
+                                                                        className="ml-2 text-blue-600 h-6 w-6 p-0"
+                                                                        title="Edit Objective"
+                                                                    >
+                                                                        <Edit className="h-3 w-3" />
+                                                                    </Button>
+                                                                    <Button 
+                                                                        type="button" 
+                                                                        size="sm" 
+                                                                        variant="ghost" 
+                                                                        onClick={() => handleRemoveCustomObjective(objective.id)}
+                                                                        className="ml-1 text-red-600 h-6 w-6 p-0"
+                                                                        title="Delete Objective"
+                                                                    >
+                                                                        <Trash2 className="h-3 w-3" />
+                                                                    </Button>
+                                                                </>
+                                                            )}
+                                                        </label>
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>
@@ -1135,10 +1618,10 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                         />
                                         <Input
                                             type="number"
-                                            placeholder="Weight (default: 7)"
+                                            placeholder="Weight (default: 7.143)"
                                             value={newObjective.weight}
-                                            onChange={(e) => setNewObjective({ ...newObjective, weight: e.target.value || '7' })}
-                                            step="0.01"
+                                            onChange={(e) => setNewObjective({ ...newObjective, weight: e.target.value || '7.143' })}
+                                            step="0.001"
                                         />
                                     </div>
                                     <div className="flex gap-2">
@@ -1148,7 +1631,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                         </Button>
                                         <Button type="button" size="sm" variant="outline" onClick={() => {
                                             setShowAddObjectiveForm(false);
-                                            setNewObjective({ kra_id: '', code: '', description: '', weight: '7' });
+                                            setNewObjective({ kra_id: '', code: '', description: '', weight: '7.143' });
                                         }}>
                                             Cancel
                                         </Button>
@@ -1312,6 +1795,537 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Objectives Management Modal */}
+            <Dialog open={isObjectivesModalOpen} onOpenChange={setIsObjectivesModalOpen}>
+                <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Target className="h-5 w-5 text-green-600" />
+                            Objectives Management
+                        </DialogTitle>
+                        <DialogDescription>
+                            Manage IPCRF objectives database - add, edit, and organize objectives across KRAs
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="space-y-4">
+                        {/* Weight Summary Section */}
+                        {objectivesData.length > 0 && (
+                            <div className="mb-6">
+                                <h3 className="text-lg font-semibold mb-4">Weight Distribution Summary</h3>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mb-6">
+                                    {(() => {
+                                        // Group objectives by KRA for summary
+                                        const groupedObjectives = objectivesData.reduce((acc, objective) => {
+                                            const kraName = objective.kra?.name || 'No KRA';
+                                            if (!acc[kraName]) {
+                                                acc[kraName] = [];
+                                            }
+                                            acc[kraName].push(objective);
+                                            return acc;
+                                        }, {});
+
+                                        const totalWeight = objectivesData.reduce((sum, obj) => sum + (parseFloat(obj.weight) || 0), 0);
+
+                                        return Object.entries(groupedObjectives).map(([kraName, objectives]) => {
+                                            const kraWeight = objectives.reduce((sum, obj) => sum + (parseFloat(obj.weight) || 0), 0);
+                                            const percentage = totalWeight > 0 ? (kraWeight / totalWeight * 100) : 0;
+                                            
+                                            return (
+                                                <div key={kraName} className="bg-gradient-to-br from-white to-blue-50 rounded-xl border-2 border-blue-200 shadow-sm hover:shadow-md transition-all duration-300 p-4 min-h-[140px] flex flex-col">
+                                                    <div className="text-sm font-medium text-blue-800 mb-2 line-clamp-2 flex-shrink-0" title={kraName}>
+                                                        {kraName}
+                                                    </div>
+                                                    <div className="flex-1 space-y-2">
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-xs text-gray-600 font-medium">Weight</span>
+                                                            <span className="text-lg font-bold text-blue-900">{kraWeight.toFixed(3)}%</span>
+                                                        </div>
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-xs text-gray-600 font-medium">Share</span>
+                                                            <span className="text-sm font-semibold text-green-700">{percentage.toFixed(3)}%</span>
+                                                        </div>
+                                                        <div className="w-full bg-gray-200 rounded-full h-2">
+                                                            <div 
+                                                                className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-500 ease-in-out"
+                                                                style={{ width: `${Math.min(percentage, 100)}%` }}
+                                                            ></div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-xs text-gray-500 mt-2 flex-shrink-0">
+                                                        {objectives.length} objective{objectives.length !== 1 ? 's' : ''}
+                                                    </div>
+                                                </div>
+                                            );
+                                        });
+                                    })()}
+                                </div>
+                                <div className="p-6 bg-gradient-to-r from-green-50 via-blue-50 to-indigo-50 rounded-xl border border-blue-200 shadow-sm">
+                                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                                        <div className="flex items-center gap-4">
+                                            <div className="p-3 bg-green-100 rounded-lg">
+                                                <Target className="h-6 w-6 text-green-700" />
+                                            </div>
+                                            <div>
+                                                <div className="text-sm font-medium text-gray-700 mb-1">Total System Weight</div>
+                                                <div className="text-3xl font-bold text-green-700">
+                                                    {objectivesData.reduce((sum, obj) => sum + (parseFloat(obj.weight) || 0), 0).toFixed(3)}%
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <div className="p-3 bg-blue-100 rounded-lg">
+                                                <AlertCircle className="h-6 w-6 text-blue-700" />
+                                            </div>
+                                            <div>
+                                                <div className="text-sm font-medium text-gray-700 mb-1">Average per Objective</div>
+                                                <div className="text-2xl font-semibold text-blue-700">
+                                                    {objectivesData.length > 0 ? 
+                                                        (objectivesData.reduce((sum, obj) => sum + (parseFloat(obj.weight) || 0), 0) / objectivesData.length).toFixed(3)
+                                                        : '0.000'
+                                                    }%
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <div className="p-3 bg-purple-100 rounded-lg">
+                                                <CheckCircle className="h-6 w-6 text-purple-700" />
+                                            </div>
+                                            <div>
+                                                <div className="text-sm font-medium text-gray-700 mb-1">Total Objectives</div>
+                                                <div className="text-2xl font-semibold text-purple-700">
+                                                    {objectivesData.length}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Header with Add Button */}
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <h3 className="text-lg font-semibold">All Objectives</h3>
+                                <p className="text-sm text-gray-600">
+                                    {objectivesData.length} objective(s) in total
+                                </p>
+                            </div>
+                            <Button 
+                                onClick={() => setShowAddObjectiveModal(true)}
+                                className="bg-green-600 hover:bg-green-700"
+                            >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Add Objective
+                            </Button>
+                        </div>
+
+                        {/* Objectives Table */}
+                        <div className="rounded-md border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Code</TableHead>
+                                        <TableHead>Description</TableHead>
+                                        <TableHead>KRA</TableHead>
+                                        <TableHead className="text-center">Weight</TableHead>
+                                        <TableHead className="text-center">Status</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {objectivesData.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan="6" className="text-center py-8 text-gray-500">
+                                                <Target className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                                                No objectives found.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        (() => {
+                                            // Group objectives by KRA
+                                            const groupedObjectives = objectivesData.reduce((acc, objective) => {
+                                                const kraName = objective.kra?.name || 'No KRA';
+                                                if (!acc[kraName]) {
+                                                    acc[kraName] = [];
+                                                }
+                                                acc[kraName].push(objective);
+                                                return acc;
+                                            }, {});
+
+                                            const rows = [];
+                                            Object.entries(groupedObjectives).forEach(([kraName, objectives], kraIndex) => {
+                                                // Add KRA header row (separator)
+                                                if (kraIndex > 0) {
+                                                    rows.push(
+                                                        <TableRow key={`spacer-${kraName}`}>
+                                                            <TableCell colSpan="6" className="p-0">
+                                                                <div className="h-2 bg-gray-100"></div>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    );
+                                                }
+                                                
+                                                rows.push(
+                                                    <TableRow key={`header-${kraName}`} className="bg-gradient-to-r from-blue-50 to-blue-100 border-b-2 border-blue-200">
+                                                        <TableCell colSpan="6" className="font-semibold text-blue-900 py-3 px-4">
+                                                            <div className="flex items-center justify-between">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="w-1 h-6 bg-blue-600 rounded-full"></div>
+                                                                    <span className="text-lg">{kraName}</span>
+                                                                    <span className="text-sm text-blue-600 ml-2">
+                                                                        ({objectives.length} objective{objectives.length !== 1 ? 's' : ''})
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex items-center gap-4">
+                                                                    <div className="text-right">
+                                                                        <div className="text-sm text-blue-600">Total Weight</div>
+                                                                        <div className="text-xl font-bold text-blue-800">
+                                                                            {objectives.reduce((sum, obj) => sum + (parseFloat(obj.weight) || 0), 0).toFixed(3)}%
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="text-right">
+                                                                        <div className="text-sm text-blue-600">Avg Weight</div>
+                                                                        <div className="text-lg font-semibold text-blue-700">
+                                                                            {objectives.length > 0 ? 
+                                                                                (objectives.reduce((sum, obj) => sum + (parseFloat(obj.weight) || 0), 0) / objectives.length).toFixed(3) 
+                                                                                : '0.000'
+                                                                            }%
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+
+                                                // Add objective rows for this KRA
+                                                objectives.forEach((objective, objIndex) => {
+                                                    rows.push(
+                                                        <TableRow key={objective.id} className="hover:bg-blue-50/50">
+                                                            <TableCell className="font-medium pl-8">{objective.code}</TableCell>
+                                                            <TableCell className="max-w-md pl-8">
+                                                                <div className="truncate" title={objective.description}>
+                                                                    {objective.description}
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                                    {objective.kra?.name || 'No KRA'}
+                                                                </span>
+                                                            </TableCell>
+                                                            <TableCell className="text-center">
+                                                                <span className="font-medium">{objective.weight.toFixed ? objective.weight.toFixed(3) : objective.weight}%</span>
+                                                            </TableCell>
+                                                            <TableCell className="text-center">
+                                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                                    objective.is_active 
+                                                                        ? 'bg-green-100 text-green-800' 
+                                                                        : 'bg-gray-100 text-gray-600'
+                                                                }`}>
+                                                                    {objective.is_active ? (
+                                                                        <>
+                                                                            <CheckCircle className="w-3 h-3 mr-1" />
+                                                                            Active
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <XCircle className="w-3 h-3 mr-1" />
+                                                                            Inactive
+                                                                        </>
+                                                                    )}
+                                                                </span>
+                                                            </TableCell>
+                                                            <TableCell className="text-right">
+                                                                <div className="flex items-center justify-end gap-2">
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        onClick={() => handleEditObjective(objective)}
+                                                                    >
+                                                                        <Edit className="h-3 w-3" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        onClick={() => handleDeleteObjective(objective)}
+                                                                        className="text-red-600 hover:text-red-700"
+                                                                    >
+                                                                        <Trash2 className="h-3 w-3" />
+                                                                    </Button>
+                                                                </div>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    );
+                                                });
+                                            });
+                                            
+                                            return rows;
+                                        })()
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsObjectivesModalOpen(false)}>
+                            Close
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Add Objective Modal */}
+            <Dialog open={showAddObjectiveModal} onOpenChange={setShowAddObjectiveModal}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Plus className="h-5 w-5 text-green-600" />
+                            Add New Objective
+                        </DialogTitle>
+                        <DialogDescription>
+                            Create a new objective to add to the IPCRF objectives database.
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="add-kra">Key Result Area (KRA) *</Label>
+                                <Select 
+                                    value={objectiveFormData.kra_id ? String(objectiveFormData.kra_id) : ""} 
+                                    onValueChange={(value) => setObjectiveFormData({...objectiveFormData, kra_id: value})}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select KRA" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {defaultKras?.map((kra) => (
+                                            <SelectItem key={kra.id} value={String(kra.id)}>
+                                                {kra.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="add-code">Objective Code *</Label>
+                                <Input
+                                    id="add-code"
+                                    type="text"
+                                    value={objectiveFormData.code}
+                                    onChange={(e) => setObjectiveFormData({...objectiveFormData, code: e.target.value})}
+                                    placeholder="e.g., OBJ-001"
+                                />
+                            </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                            <Label htmlFor="add-description">Description *</Label>
+                            <Textarea
+                                id="add-description"
+                                value={objectiveFormData.description}
+                                onChange={(e) => setObjectiveFormData({...objectiveFormData, description: e.target.value})}
+                                placeholder="Detailed description of the objective..."
+                                rows={3}
+                            />
+                        </div>
+                        
+                        <div className="grid grid-cols-3 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="add-weight">Weight (%) *</Label>
+                                <Input
+                                    id="add-weight"
+                                    type="number"
+                                    step="0.001"
+                                    min="0"
+                                    max="100"
+                                    value={objectiveFormData.weight}
+                                    onChange={(e) => setObjectiveFormData({...objectiveFormData, weight: e.target.value})}
+                                    placeholder="0.000"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="add-order">Order *</Label>
+                                <Input
+                                    id="add-order"
+                                    type="number"
+                                    min="1"
+                                    value={objectiveFormData.order}
+                                    onChange={(e) => setObjectiveFormData({...objectiveFormData, order: e.target.value})}
+                                    placeholder="1"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Status</Label>
+                                <div className="flex items-center space-x-2">
+                                    <Checkbox 
+                                        id="is_active"
+                                        checked={objectiveFormData.is_active}
+                                        onCheckedChange={(checked) => setObjectiveFormData({...objectiveFormData, is_active: checked})}
+                                    />
+                                    <Label htmlFor="is_active">Active</Label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowAddObjectiveModal(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleAddObjective} className="bg-green-600 hover:bg-green-700">
+                            <Save className="mr-2 h-4 w-4" />
+                            Create Objective
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Objective Modal */}
+            <Dialog open={showEditObjectiveModal} onOpenChange={setShowEditObjectiveModal}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Edit className="h-5 w-5 text-blue-600" />
+                            Edit Objective
+                        </DialogTitle>
+                        <DialogDescription>
+                            Update the objective information.
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-kra">Key Result Area (KRA) *</Label>
+                                <Select 
+                                    value={objectiveFormData.kra_id ? String(objectiveFormData.kra_id) : ""} 
+                                    onValueChange={(value) => setObjectiveFormData({...objectiveFormData, kra_id: value})}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select KRA" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {defaultKras?.map((kra) => (
+                                            <SelectItem key={kra.id} value={String(kra.id)}>
+                                                {kra.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-code">Objective Code *</Label>
+                                <Input
+                                    id="edit-code"
+                                    type="text"
+                                    value={objectiveFormData.code}
+                                    onChange={(e) => setObjectiveFormData({...objectiveFormData, code: e.target.value})}
+                                    placeholder="e.g., OBJ-001"
+                                />
+                            </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-description">Description *</Label>
+                            <Textarea
+                                id="edit-description"
+                                value={objectiveFormData.description}
+                                onChange={(e) => setObjectiveFormData({...objectiveFormData, description: e.target.value})}
+                                placeholder="Detailed description of the objective..."
+                                rows={3}
+                            />
+                        </div>
+                        
+                        <div className="grid grid-cols-3 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-weight">Weight (%) *</Label>
+                                <Input
+                                    id="edit-weight"
+                                    type="number"
+                                    step="0.001"
+                                    min="0"
+                                    max="100"
+                                    value={objectiveFormData.weight}
+                                    onChange={(e) => setObjectiveFormData({...objectiveFormData, weight: e.target.value})}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-order">Order *</Label>
+                                <Input
+                                    id="edit-order"
+                                    type="number"
+                                    min="1"
+                                    value={objectiveFormData.order}
+                                    onChange={(e) => setObjectiveFormData({...objectiveFormData, order: e.target.value})}
+                                    placeholder="1"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Status</Label>
+                                <div className="flex items-center space-x-2">
+                                    <Checkbox 
+                                        id="edit_is_active"
+                                        checked={objectiveFormData.is_active}
+                                        onCheckedChange={(checked) => setObjectiveFormData({...objectiveFormData, is_active: checked})}
+                                    />
+                                    <Label htmlFor="edit_is_active">Active</Label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowEditObjectiveModal(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleUpdateObjective} className="bg-blue-600 hover:bg-blue-700">
+                            <Save className="mr-2 h-4 w-4" />
+                            Update Objective
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Objective Confirmation Modal */}
+            <Dialog open={showDeleteObjectiveModal} onOpenChange={setShowDeleteObjectiveModal}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-red-600">
+                            <Trash2 className="h-5 w-5" />
+                            Delete Objective
+                        </DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete the objective "{selectedObjective?.code}"? 
+                            This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    {selectedObjective && (
+                        <div className="p-4 bg-gray-50 rounded-md">
+                            <p className="text-sm"><strong>Code:</strong> {selectedObjective.code}</p>
+                            <p className="text-sm"><strong>Description:</strong> {selectedObjective.description}</p>
+                            <p className="text-sm"><strong>KRA:</strong> {selectedObjective.kra?.name}</p>
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowDeleteObjectiveModal(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={confirmDeleteObjective} className="bg-red-600 hover:bg-red-700 text-white">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete Objective
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }
+
+
+

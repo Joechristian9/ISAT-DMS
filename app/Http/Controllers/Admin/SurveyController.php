@@ -25,7 +25,7 @@ class SurveyController extends Controller
         // Get all unique school years
         $schoolYears = IpcrfSurvey::select('school_year')
             ->distinct()
-            ->orderBy('school_year', 'desc')
+            ->orderBy('school_year', 'desc')    
             ->pluck('school_year');
 
         // Calculate statistics
