@@ -85,7 +85,9 @@ class DatabaseSeeder extends Seeder
             $teacher2->assignRole('teacher');
         }
 
-        // Seed IPCRF data
-        $this->call(IpcrfSeeder::class);
+        // Seed IPCRF data - KRAs and Objectives
+        $this->call(KraSeeder::class);
+        $this->call(ObjectiveSeeder::class);
+        $this->call(IpcrfRatingSeeder::class);
     }
 }
