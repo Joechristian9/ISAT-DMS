@@ -233,8 +233,8 @@ export default function Questionnaire({ questionnaire, schoolYear, user }) {
                             It is important for you to know that this questionnaire is completely independent and that there is not a correct or incorrect answer. The information you provide will be kept confidentially. Thank you very much.
                         </p>
                         
-                        {/* Legend */}
-                        <div className="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-lg p-4 border-2 border-yellow-200">
+                        {/* Legend - Sticky */}
+                        <div className="sticky top-0 z-50 bg-gradient-to-br from-yellow-50 to-amber-50 rounded-lg p-4 border-2 border-yellow-200 shadow-lg mb-4">
                             <p className="font-bold text-gray-900 mb-2">Legend:</p>
                             <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
                                 {ratingScale.map((scale) => (
