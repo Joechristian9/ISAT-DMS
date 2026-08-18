@@ -63,12 +63,7 @@ class IpcrfController extends Controller
                   ->orWhere('ipcrf_configuration_id', $activeConfig->id); // Custom KRAs for this config
         })
         ->orderBy('order')
-        ->get()
-        ->filter(function ($kra) {
-            // Only include KRAs that have objectives
-            return $kra->objectives->count() > 0;
-        })
-        ->values(); // Reset array keys
+        ->get();
         
         // Get teacher's submissions - grouped by objective
         $submissions = TeacherSubmission::where('teacher_id', auth()->id())
