@@ -238,7 +238,7 @@ export default function TeacherIpcrf({ kras, submissions, schoolYear, user, noAc
                     )}
 
                     {/* Only show KRA content if config is active and not locked */}
-                    {!noActiveConfig && !isLocked && (
+                    {!noActiveConfig && !isLocked && currentKra && (
                     <>
                     {/* KRA Navigation - Enhanced */}
                     <div className="bg-gradient-to-r from-white via-green-50 to-white rounded-2xl shadow-xl p-6 mb-6 border-2 border-green-200 relative overflow-hidden">
