@@ -229,21 +229,21 @@ export default function Questionnaire({ questionnaire, schoolYear, user }) {
                         <p className="text-gray-700 mb-4">
                             A series of statements are listed below. Each one describes a situation which may be related to a certain extent to what you do or feel. Mark with a <span className="font-bold">✓</span> the option that best applies to how often you engaged in the mentioned activity.
                         </p>
-                        <p className="text-gray-700 mb-4">
+                        <p className="text-gray-700">
                             It is important for you to know that this questionnaire is completely independent and that there is not a correct or incorrect answer. The information you provide will be kept confidentially. Thank you very much.
                         </p>
-                        
-                        {/* Legend - Sticky */}
-                        <div className="sticky top-0 z-50 bg-gradient-to-br from-yellow-50 to-amber-50 rounded-lg p-4 border-2 border-yellow-200 shadow-lg mb-4">
-                            <p className="font-bold text-gray-900 mb-2">Legend:</p>
-                            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
-                                {ratingScale.map((scale) => (
-                                    <div key={scale.value} className="text-center">
-                                        <span className="font-bold text-gray-900">{scale.description} ({scale.label})</span>
-                                        <span className="block text-gray-600">– {scale.value}</span>
-                                    </div>
-                                ))}
-                            </div>
+                    </div>
+
+                    {/* Legend - Sticky */}
+                    <div className="sticky top-0 z-50 bg-gradient-to-br from-yellow-50 to-amber-50 rounded-lg p-4 border-2 border-yellow-200 shadow-xl mb-6 backdrop-blur-sm bg-opacity-95">
+                        <p className="font-bold text-gray-900 mb-2">Legend:</p>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
+                            {ratingScale.map((scale) => (
+                                <div key={scale.value} className="text-center">
+                                    <span className="font-bold text-gray-900">{scale.description} ({scale.label})</span>
+                                    <span className="block text-gray-600">– {scale.value}</span>
+                                </div>
+                            ))}
                         </div>
                     </div>
 
