@@ -36,8 +36,14 @@ class KraSeeder extends Seeder
             ],
         ];
 
+        // Match on `order` so re-running the seeder updates the existing KRAs
+        // instead of creating duplicates. Objectives are attached to these KRAs
+        // in the database, so the rows must never be deleted and recreated.
         foreach ($kras as $kra) {
-            Kra::create($kra);
+            Kra::updateOrCreate(
+                ['order' => $kra['order']],
+                $kra
+            );
         }
     }
 }

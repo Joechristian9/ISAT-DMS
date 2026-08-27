@@ -10,7 +10,10 @@ import { useState } from 'react';
 export default function Edit({ mustVerifyEmail, status, auth }) {
     const [photoPreview, setPhotoPreview] = useState(null);
     
-    const displayPhoto = photoPreview || (auth.user.photo ? `/storage/${auth.user.photo}` : null);
+    // Use profile_picture (consistent with admin upload) with fallback to photo for backward compatibility
+    const displayPhoto = photoPreview || 
+        (auth.user.profile_picture ? `/storage/${auth.user.profile_picture}` : 
+        (auth.user.photo ? `/storage/${auth.user.photo}` : null));
 
     return (
         <TeacherLayout user={auth.user}>

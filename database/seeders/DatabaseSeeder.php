@@ -85,9 +85,9 @@ class DatabaseSeeder extends Seeder
             $teacher2->assignRole('teacher');
         }
 
-        // Seed IPCRF data - KRAs and Objectives
+        // Seed IPCRF data - KRAs only.
+        // Objectives are managed directly in the database / admin UI, not seeded.
         $this->call(KraSeeder::class);
-        $this->call(ObjectiveSeeder::class);
         $this->call(IpcrfRatingSeeder::class);
     }
 }

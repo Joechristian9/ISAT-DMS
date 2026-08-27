@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
 use App\Models\Kra;
+use App\Models\KraSelfRating;
 use App\Models\TeacherSubmission;
 use App\Models\IpcrfConfiguration;
 use Illuminate\Http\Request;
@@ -14,8 +15,13 @@ class IpcrfController extends Controller
 {
     public function index()
     {
-        // Get the active IPCRF configuration
-        $activeConfig = IpcrfConfiguration::where('is_active', true)->first();
+        // Resolve the teacher's position tier from the division JSON payload
+        $user = auth()->user();
+        $divisionData = json_decode($user->division, true);
+        $teacherPositionTier = is_array($divisionData) ? ($divisionData['position_range'] ?? null) : null;
+
+        // Get the active IPCRF configuration for this teacher's position tier
+        $activeConfig = IpcrfConfiguration::getActiveConfigForTier($teacherPositionTier);
         
         // Check if there's no active config or if it's locked
         if (!$activeConfig) {
@@ -25,7 +31,9 @@ class IpcrfController extends Controller
                 'schoolYear' => null,
                 'user' => auth()->user(),
                 'noActiveConfig' => true,
-                'message' => 'No active IPCRF configuration found. Please contact the administrator.',
+                'message' => $teacherPositionTier
+                    ? "No active IPCRF configuration found for your position tier ({$teacherPositionTier}). Please contact the administrator."
+                    : 'No active IPCRF configuration found. Please contact the administrator.',
             ]);
         }
 
@@ -42,9 +50,8 @@ class IpcrfController extends Controller
         
         $currentYear = $activeConfig->school_year;
         
-        // Load KRAs with filtered objectives based on configuration
-        // Include both default KRAs and custom KRAs for this configuration
-        $kras = Kra::with(['objectives' => function ($query) use ($activeConfig) {
+        // Load KRAs with filtered objectives based on configuration AND position tier
+        $kras = Kra::with(['objectives' => function ($query) use ($activeConfig, $teacherPositionTier) {
             $query->where('is_active', true);
             
             // Filter by selected objective IDs if configured
@@ -55,12 +62,27 @@ class IpcrfController extends Controller
                 });
             }
             
+            // Filter by teacher's position tier
+            if ($teacherPositionTier) {
+                $query->where(function($q) use ($teacherPositionTier) {
+                    $q->whereNull('position_tiers')  // Include objectives for all positions
+                      ->orWhereJsonContains('position_tiers', $teacherPositionTier); // Or specific to teacher's tier
+                });
+            }
+            
             $query->orderBy('order');
         }, 'objectives.competencies'])
         ->where('is_active', true)
         ->where(function($query) use ($activeConfig) {
             $query->whereNull('ipcrf_configuration_id') // Default KRAs
                   ->orWhere('ipcrf_configuration_id', $activeConfig->id); // Custom KRAs for this config
+        })
+        // Filter KRAs by position tier as well
+        ->where(function($query) use ($teacherPositionTier) {
+            if ($teacherPositionTier) {
+                $query->whereNull('position_tiers')
+                      ->orWhereJsonContains('position_tiers', $teacherPositionTier);
+            }
         })
         ->orderBy('order')
         ->get();
@@ -77,9 +99,19 @@ class IpcrfController extends Controller
                 return $item->objective_id . '_' . $item->competency_id;
             });
 
+        // Self-rating documents the teacher uploaded per KRA, keyed by KRA id
+        $selfRatings = KraSelfRating::where('teacher_id', auth()->id())
+            ->where('school_year', $currentYear)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->groupBy('kra_id');
+
         return Inertia::render('Teacher/Ipcrf', [
             'kras' => $kras,
             'submissions' => $submissions,
+            'selfRatings' => $selfRatings,
+            'selfRatingTotalWeight' => KraSelfRating::TOTAL_WEIGHT,
+            'selfRatingWeightPerKra' => KraSelfRating::weightPerKra($kras->count()),
             'schoolYear' => $currentYear,
             'user' => auth()->user(),
             'noActiveConfig' => false,
@@ -87,10 +119,76 @@ class IpcrfController extends Controller
         ]);
     }
 
+    /**
+     * Store a self-rating document for one KRA.
+     */
+    public function uploadSelfRating(Request $request)
+    {
+        $divisionData = json_decode(auth()->user()->division, true);
+        $teacherPositionTier = is_array($divisionData) ? ($divisionData['position_range'] ?? null) : null;
+
+        $activeConfig = IpcrfConfiguration::getActiveConfigForTier($teacherPositionTier);
+
+        if (!$activeConfig) {
+            return back()->with('error', 'No active IPCRF configuration found. Please contact the administrator.');
+        }
+
+        if ($activeConfig->is_locked) {
+            return back()->with('error', 'The IPCRF for this school year is currently locked. No submissions are allowed.');
+        }
+
+        $validated = $request->validate([
+            'kra_id' => 'required|exists:kras,id',
+            'file' => 'required|file|mimes:pdf|max:10240', // 10MB max
+            'self_rating' => 'nullable|numeric|min:1|max:5',
+            'notes' => 'nullable|string|max:1000',
+        ], [
+            'file.mimes' => 'The self-rating document must be a PDF file.',
+            'self_rating.min' => 'Self-rating must be between 1 and 5.',
+            'self_rating.max' => 'Self-rating must be between 1 and 5.',
+        ]);
+
+        $file = $request->file('file');
+        $path = $file->store('ipcrf-self-ratings/' . auth()->id(), 'public');
+
+        KraSelfRating::create([
+            'teacher_id' => auth()->id(),
+            'kra_id' => $validated['kra_id'],
+            'school_year' => $activeConfig->school_year,
+            'file_path' => $path,
+            'original_name' => $file->getClientOriginalName(),
+            'self_rating' => $validated['self_rating'] ?? null,
+            'notes' => $validated['notes'] ?? null,
+        ]);
+
+        return back()->with('success', 'Self-rating uploaded successfully!');
+    }
+
+    /**
+     * Remove a self-rating document.
+     */
+    public function deleteSelfRating(KraSelfRating $selfRating)
+    {
+        if ($selfRating->teacher_id !== auth()->id()) {
+            abort(403);
+        }
+
+        if ($selfRating->file_path) {
+            Storage::disk('public')->delete($selfRating->file_path);
+        }
+
+        $selfRating->delete();
+
+        return back()->with('success', 'Self-rating removed successfully!');
+    }
+
     public function upload(Request $request)
     {
-        // Check if there's an active config and it's not locked
-        $activeConfig = IpcrfConfiguration::where('is_active', true)->first();
+        // Check if there's an active config for this teacher's tier and it's not locked
+        $divisionData = json_decode(auth()->user()->division, true);
+        $teacherPositionTier = is_array($divisionData) ? ($divisionData['position_range'] ?? null) : null;
+
+        $activeConfig = IpcrfConfiguration::getActiveConfigForTier($teacherPositionTier);
         
         if (!$activeConfig) {
             return back()->with('error', 'No active IPCRF configuration found. Please contact the administrator.');

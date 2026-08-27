@@ -32,8 +32,19 @@ class DashboardController extends Controller
                 ->first();
         }
         
+        // Load user with position relationship
+        $user = auth()->user()->load('currentPosition');
+        
+        // Parse division JSON to get position info
+        $divisionData = json_decode($user->division, true);
+        if (is_array($divisionData)) {
+            $user->position_range = $divisionData['position_range'] ?? null;
+            $user->position_career_stage = $divisionData['career_stage'] ?? null;
+            $user->department = $divisionData['department'] ?? null;
+        }
+        
         return Inertia::render('Teacher/Dashboard', [
-            'user' => auth()->user(),
+            'user' => $user,
             'activeConfig' => $activeConfig,
             'submissions' => $submissions,
             'signedIpcrf' => $signedIpcrf,

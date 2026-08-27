@@ -6,8 +6,19 @@ use Illuminate\Database\Eloquent\Model;
 
 class IpcrfConfiguration extends Model
 {
+    /**
+     * Position tiers a configuration can target.
+     */
+    public const POSITION_TIERS = [
+        'T1 - T3',
+        'T4 - T7',
+        'MT1 - MT2',
+        'MT3 - MT5',
+    ];
+
     protected $fillable = [
         'school_year',
+        'position_tier',
         'kra_count',
         'objectives_per_kra',
         'selected_objective_ids',
@@ -53,6 +64,28 @@ class IpcrfConfiguration extends Model
         }
         
         return self::where('is_active', true)->first();
+    }
+
+    /**
+     * Get the active configuration that applies to a given position tier.
+     * Falls back to a tier-agnostic configuration (position_tier = null) when
+     * no tier-specific configuration is active.
+     */
+    public static function getActiveConfigForTier(?string $positionTier)
+    {
+        if ($positionTier) {
+            $tierConfig = self::where('is_active', true)
+                ->where('position_tier', $positionTier)
+                ->first();
+
+            if ($tierConfig) {
+                return $tierConfig;
+            }
+        }
+
+        return self::where('is_active', true)
+            ->whereNull('position_tier')
+            ->first();
     }
 
     /**

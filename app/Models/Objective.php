@@ -16,6 +16,7 @@ class Objective extends Model
         'order',
         'weight',
         'is_active',
+        'position_tiers',
         'ipcrf_configuration_id',
         'is_custom',
     ];
@@ -24,6 +25,7 @@ class Objective extends Model
         'weight' => 'decimal:3',
         'is_active' => 'boolean',
         'is_custom' => 'boolean',
+        'position_tiers' => 'array',
     ];
 
     public function kra()
@@ -39,5 +41,16 @@ class Objective extends Model
     public function submissions()
     {
         return $this->hasMany(TeacherSubmission::class);
+    }
+
+    /**
+     * Scope to filter Objectives by position tier
+     */
+    public function scopeForPositionTier($query, $positionTier)
+    {
+        return $query->where(function ($q) use ($positionTier) {
+            $q->whereNull('position_tiers')
+              ->orWhereJsonContains('position_tiers', $positionTier);
+        });
     }
 }

@@ -32,6 +32,23 @@ class IpcrfManagementController extends Controller
         $statusFilter = $request->input('status', '');
         $yearFilter = $request->input('year', '');
 
+        // Active configurations are now defined per position tier
+        $activeConfigs = IpcrfConfiguration::where('is_active', true)->get();
+        $currentSchoolYear = $activeConfigs->first()->school_year ?? null;
+
+        // Expected objective count per position tier, taken from each tier's configuration
+        $objectiveTotalsByTier = $activeConfigs
+            ->filter(fn ($config) => $config->position_tier)
+            ->mapWithKeys(fn ($config) => [
+                $config->position_tier => count($config->selected_objective_ids ?? []),
+            ]);
+
+        // Fallback for teachers with no tier (or no tier-specific configuration)
+        $fallbackConfig = $activeConfigs->firstWhere('position_tier', null);
+        $fallbackTotal = $fallbackConfig
+            ? count($fallbackConfig->selected_objective_ids ?? [])
+            : Objective::where('is_active', true)->count();
+
         $query = User::role('teacher')
             ->with([
                 'currentPosition', 
@@ -43,7 +60,13 @@ class IpcrfManagementController extends Controller
                     $q->latest()->limit(10);
                 }
             ])
-            ->withMax('ipcrfRatings as latest_rating_date', 'created_at');
+            ->withMax('ipcrfRatings as latest_rating_date', 'created_at')
+            // Count MOV submissions for the current school year
+            ->withCount(['teacherSubmissions as mov_uploads_count' => function ($q) use ($currentSchoolYear) {
+                if ($currentSchoolYear) {
+                    $q->where('school_year', $currentSchoolYear);
+                }
+            }]);
 
         if ($search) {
             $query->where('name', 'like', "%{$search}%");
@@ -53,6 +76,17 @@ class IpcrfManagementController extends Controller
         $teachers = $query->orderByDesc('latest_rating_date')
             ->orderBy('name') // Secondary sort by name for teachers without ratings
             ->paginate(10);
+
+        // Parse division JSON for each teacher to get position tier info and the
+        // objective total expected for that tier
+        $teachers->getCollection()->transform(function ($teacher) use ($objectiveTotalsByTier, $fallbackTotal) {
+            $divisionData = json_decode($teacher->division, true);
+            $teacher->position_range = is_array($divisionData) ? ($divisionData['position_range'] ?? null) : null;
+            $teacher->position_career_stage = is_array($divisionData) ? ($divisionData['career_stage'] ?? null) : null;
+            $teacher->expected_movs = $objectiveTotalsByTier[$teacher->position_range] ?? $fallbackTotal;
+
+            return $teacher;
+        });
 
         // Get available years from ratings
         $availableYears = IpcrfRating::select('rating_period')
@@ -67,6 +101,8 @@ class IpcrfManagementController extends Controller
             'teachers' => $teachers,
             'availableYears' => $availableYears,
             'kras' => $kras,
+            'totalObjectives' => $fallbackTotal,
+            'currentSchoolYear' => $currentSchoolYear,
             'filters' => [
                 'search' => $search,
                 'status' => $statusFilter,
@@ -465,21 +501,26 @@ class IpcrfManagementController extends Controller
     {
         $request->validate([
             'kra_id' => 'required|exists:kras,id',
-            'code' => 'required|string|max:50|unique:objectives,code',
             'description' => 'required|string|max:1000',
             'weight' => 'required|numeric|min:0|max:100',
             'order' => 'required|integer|min:1',
             'is_active' => 'boolean',
+            'position_tiers' => 'nullable|array',
+            'position_tiers.*' => 'string|in:T1 - T3,T4 - T7,MT1 - MT2,MT3 - MT5',
         ]);
+
+        // Auto-generate code based on order
+        $code = (string) $request->order;
 
         Objective::create([
             'kra_id' => $request->kra_id,
-            'code' => $request->code,
+            'code' => $code,
             'description' => $request->description,
             'weight' => $request->weight,
             'order' => $request->order,
             'is_active' => $request->boolean('is_active', true),
             'is_custom' => true,
+            'position_tiers' => $request->position_tiers,
         ]);
 
         return back()->with('success', 'Objective created successfully!');
@@ -492,20 +533,25 @@ class IpcrfManagementController extends Controller
     {
         $request->validate([
             'kra_id' => 'required|exists:kras,id',
-            'code' => 'required|string|max:50|unique:objectives,code,' . $objective->id,
             'description' => 'required|string|max:1000',
             'weight' => 'required|numeric|min:0|max:100',
             'order' => 'required|integer|min:1',
             'is_active' => 'boolean',
+            'position_tiers' => 'nullable|array',
+            'position_tiers.*' => 'string|in:T1 - T3,T4 - T7,MT1 - MT2,MT3 - MT5',
         ]);
+
+        // Auto-generate code based on order
+        $code = (string) $request->order;
 
         $objective->update([
             'kra_id' => $request->kra_id,
-            'code' => $request->code,
+            'code' => $code,
             'description' => $request->description,
             'weight' => $request->weight,
             'order' => $request->order,
             'is_active' => $request->boolean('is_active'),
+            'position_tiers' => $request->position_tiers,
         ]);
 
         return back()->with('success', 'Objective updated successfully!');

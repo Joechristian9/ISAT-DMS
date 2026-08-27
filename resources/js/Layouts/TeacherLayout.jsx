@@ -140,9 +140,9 @@ export default function TeacherLayout({ children, user = { name: 'User', email: 
                                     background: 'linear-gradient(to bottom right, #66BB6A, #4CAF50)',
                                     border: '2px solid rgba(102, 187, 106, 0.3)'
                                 }}>
-                                    {user.photo ? (
+                                    {(user.profile_picture || user.photo) ? (
                                         <img
-                                            src={`/storage/${user.photo}`}
+                                            src={`/storage/${user.profile_picture || user.photo}`}
                                             alt={user.name}
                                             className="w-full h-full object-cover"
                                         />

@@ -225,7 +225,7 @@ export default function UpdateProfilePhotoForm({ user, onPhotoPreview, className
                         </Button>
                     )}
 
-                    {user.photo && !photoPreview && (
+                    {(user.profile_picture || user.photo) && !photoPreview && (
                         <Button
                             type="button"
                             onClick={handleDelete}

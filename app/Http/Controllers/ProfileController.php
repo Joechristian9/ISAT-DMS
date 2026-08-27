@@ -36,15 +36,20 @@ class ProfileController extends Controller
 
         $user = $request->user();
 
-        // Delete old photo if exists
+        // Delete old photo if exists (check both columns for backward compatibility)
+        if ($user->profile_picture) {
+            Storage::disk('public')->delete($user->profile_picture);
+        }
         if ($user->photo) {
             Storage::disk('public')->delete($user->photo);
+            $user->photo = null; // Clear the old column
         }
 
         // Store new photo
-        $path = $request->file('photo')->store('profile-photos', 'public');
+        $path = $request->file('photo')->store('profile_pictures', 'public');
         
-        $user->photo = $path;
+        // Use profile_picture column (consistent with admin upload)
+        $user->profile_picture = $path;
         $user->save();
 
         return Redirect::route('profile.edit')->with('status', 'photo-updated');
@@ -57,11 +62,16 @@ class ProfileController extends Controller
     {
         $user = $request->user();
 
+        // Delete from both columns for backward compatibility
+        if ($user->profile_picture) {
+            Storage::disk('public')->delete($user->profile_picture);
+            $user->profile_picture = null;
+        }
         if ($user->photo) {
             Storage::disk('public')->delete($user->photo);
             $user->photo = null;
-            $user->save();
         }
+        $user->save();
 
         return Redirect::route('profile.edit')->with('status', 'photo-deleted');
     }

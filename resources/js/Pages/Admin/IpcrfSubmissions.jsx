@@ -41,11 +41,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Toaster } from "@/components/ui/sonner";
-import { Search, Plus, Eye, FileDown } from 'lucide-react';
+import { Search, Plus, Eye, FileDown, FileCheck, FileX } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-export default function IpcrfSubmissions({ teachers, availableYears, kras, filters, flash }) {
+export default function IpcrfSubmissions({ teachers, availableYears, kras, totalObjectives, currentSchoolYear, filters, flash }) {
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
     const [selectedStatus, setSelectedStatus] = useState(filters.status || '');
     const [selectedYear, setSelectedYear] = useState(filters.year || '');
@@ -512,6 +512,7 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, filte
                                             <TableRow>
                                                 <TableHead>Teacher Name</TableHead>
                                                 <TableHead>Position</TableHead>
+                                                <TableHead className="text-center">MOV Uploads</TableHead>
                                                 <TableHead className="text-center">Rating</TableHead>
                                                 <TableHead className="text-center">Equivalency</TableHead>
                                                 <TableHead className="text-center">Status</TableHead>
@@ -521,21 +522,56 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, filte
                                         <TableBody>
                                             {teachers.data.length === 0 ? (
                                                 <TableRow>
-                                                    <TableCell colSpan={6} className="text-center text-muted-foreground">
+                                                    <TableCell colSpan={7} className="text-center text-muted-foreground">
                                                         No teachers found
                                                     </TableCell>
                                                 </TableRow>
                                             ) : (
                                                 teachers.data.map((teacher) => {
                                                     const latestRating = teacher.ipcrf_ratings?.[0];
+                                                    const movCount = teacher.mov_uploads_count || 0;
+                                                    // Expected MOV count depends on the teacher's position tier configuration
+                                                    const expectedMovs = teacher.expected_movs ?? totalObjectives ?? 0;
+                                                    const movPercentage = expectedMovs > 0 ? Math.round((movCount / expectedMovs) * 100) : 0;
+                                                    const movComplete = expectedMovs > 0 && movCount >= expectedMovs;
+                                                    
+                                                    // Determine MOV status color
+                                                    const getMovStatusColor = () => {
+                                                        if (movCount === 0) return 'bg-gray-100 text-gray-600';
+                                                        if (movComplete) return 'bg-green-100 text-green-700';
+                                                        if (movPercentage >= 50) return 'bg-yellow-100 text-yellow-700';
+                                                        return 'bg-orange-100 text-orange-700';
+                                                    };
                                                     
                                                     return (
                                                         <TableRow key={teacher.id}>
                                                             <TableCell className="font-medium">{teacher.name}</TableCell>
                                                             <TableCell>
-                                                                <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-blue-50 text-blue-700">
-                                                                    {teacher.current_position?.name || 'No Position'}
-                                                                </span>
+                                                                <div className="flex flex-col gap-1">
+                                                                    {teacher.position_range && (
+                                                                        <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-bold bg-green-100 text-green-700">
+                                                                            {teacher.position_range}
+                                                                        </span>
+                                                                    )}
+                                                                    <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-blue-50 text-blue-700">
+                                                                        {teacher.position_career_stage || teacher.current_position?.name || 'No Position'}
+                                                                    </span>
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell className="text-center">
+                                                                <div className="flex flex-col items-center gap-1">
+                                                                    <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${getMovStatusColor()}`}>
+                                                                        {movCount === 0 ? (
+                                                                            <FileX className="h-3 w-3" />
+                                                                        ) : (
+                                                                            <FileCheck className="h-3 w-3" />
+                                                                        )}
+                                                                        {movCount}/{expectedMovs}
+                                                                    </span>
+                                                                    {movCount > 0 && !movComplete && (
+                                                                        <span className="text-[10px] text-gray-500">{movPercentage}%</span>
+                                                                    )}
+                                                                </div>
                                                             </TableCell>
                                                             <TableCell className="text-center">
                                                                 {latestRating ? (

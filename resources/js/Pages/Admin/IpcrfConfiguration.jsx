@@ -66,13 +66,15 @@ import {
     MoreVertical
 } from 'lucide-react';
 
-export default function IpcrfConfiguration({ configurations, currentYear, defaultKras, flash }) {
+export default function IpcrfConfiguration({ configurations, currentYear, defaultKras, positionTiers, flash }) {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
     const [isObjectivesModalOpen, setIsObjectivesModalOpen] = useState(false);
     const [selectedConfig, setSelectedConfig] = useState(null);
+    // Blocks duplicate submits, which previously hit already-deleted records and 404'd
+    const [isProcessing, setIsProcessing] = useState(false);
     
     // Custom KRA/Objective states
     const [customKras, setCustomKras] = useState([]);
@@ -80,7 +82,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
     const [showAddKraForm, setShowAddKraForm] = useState(false);
     const [showAddObjectiveForm, setShowAddObjectiveForm] = useState(false);
     const [newKra, setNewKra] = useState({ name: '', description: '' });
-    const [newObjective, setNewObjective] = useState({ kra_id: '', code: '', description: '', weight: '7.143' });
+    const [newObjective, setNewObjective] = useState({ kra_id: '', code: '', description: '', weight: '6.786' });
     
     // Edit states
     const [editingKra, setEditingKra] = useState(null);
@@ -101,10 +103,24 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
         weight: '',
         order: '',
         is_active: true,
+        position_tiers: [], // T1-T3, T4-T7, MT1-MT2, MT3-MT5
     });
     
+    // Position tiers options (labels come from the tier list shared by the backend)
+    const positionTierLabels = {
+        'T1 - T3': 'T1 - T3 (Beginning)',
+        'T4 - T7': 'T4 - T7 (Proficient)',
+        'MT1 - MT2': 'MT1 - MT2 (Master Teacher I-II)',
+        'MT3 - MT5': 'MT3 - MT5 (Master Teacher III-V)',
+    };
+
+    const positionTierOptions = (positionTiers && positionTiers.length > 0
+        ? positionTiers
+        : Object.keys(positionTierLabels)
+    ).map((tier) => ({ value: tier, label: positionTierLabels[tier] || tier }));
+    
     // Combine default and custom KRAs, merging custom objectives into default KRAs
-    const availableKras = React.useMemo(() => {
+    const allKras = React.useMemo(() => {
         if (!defaultKras) return [];
         
         // Start with default KRAs
@@ -137,6 +153,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
     
     const [formData, setFormData] = useState({
         school_year: '',
+        position_tier: '',
         kra_count: 4,
         objectives_per_kra: [3, 3, 3, 3],
         selected_objective_ids: [],
@@ -146,6 +163,44 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
         submission_end_date: '',
         notes: '',
     });
+
+    // KRAs/objectives narrowed down to the tier the configuration targets.
+    // Items without any tier designation apply to every tier.
+    const tierFilteredKras = React.useMemo(() => {
+        if (!formData.position_tier) return [];
+
+        const matchesTier = (item) => {
+            const tiers = item.position_tiers;
+            if (!tiers || tiers.length === 0) return true;
+            return tiers.includes(formData.position_tier);
+        };
+
+        return allKras
+            .filter(matchesTier)
+            .map((kra) => ({
+                ...kra,
+                objectives: (kra.objectives || []).filter(matchesTier),
+            }))
+            .filter((kra) => kra.objectives.length > 0);
+    }, [allKras, formData.position_tier]);
+
+    // The configuration modals only ever work with the selected tier's KRAs
+    const availableKras = tierFilteredKras;
+
+    // Objective IDs that are valid for the currently selected tier
+    const tierObjectiveIds = React.useMemo(
+        () => tierFilteredKras.flatMap((kra) => kra.objectives.map((obj) => obj.id)),
+        [tierFilteredKras]
+    );
+
+    // Changing the tier drops any selections that no longer belong to it
+    const handlePositionTierChange = (tier) => {
+        setFormData((prev) => ({
+            ...prev,
+            position_tier: tier,
+            selected_objective_ids: [],
+        }));
+    };
 
     // Show flash messages
     useEffect(() => {
@@ -160,6 +215,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
     const resetForm = () => {
         setFormData({
             school_year: '',
+            position_tier: '',
             kra_count: 4,
             objectives_per_kra: [3, 3, 3, 3],
             selected_objective_ids: [],
@@ -251,7 +307,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
             kra_id: newObjective.kra_id,
             code: newObjective.code,
             description: newObjective.description,
-            weight: parseFloat(newObjective.weight) || 7.143,
+            weight: parseFloat(newObjective.weight) || 6.786,
             is_custom: true,
             order: 100
         };
@@ -265,7 +321,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
             selected_objective_ids: [...formData.selected_objective_ids, customObj.id]
         });
         
-        setNewObjective({ kra_id: '', code: '', description: '', weight: '7.143' });
+        setNewObjective({ kra_id: '', code: '', description: '', weight: '6.786' });
         setShowAddObjectiveForm(false);
         toast.success('Custom objective added!');
     };
@@ -307,7 +363,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                     kra_id: editObjectiveData.kra_id,
                     code: editObjectiveData.code,
                     description: editObjectiveData.description,
-                    weight: parseFloat(editObjectiveData.weight) || 7.143
+                    weight: parseFloat(editObjectiveData.weight) || 6.786
                 }
                 : obj
         ));
@@ -335,12 +391,9 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
     };
 
     const handleSelectAllObjectives = () => {
-        const allObjectiveIds = availableKras.flatMap(kra => 
-            kra.objectives ? kra.objectives.map(obj => obj.id) : []
-        );
         setFormData({
             ...formData,
-            selected_objective_ids: allObjectiveIds,
+            selected_objective_ids: tierObjectiveIds,
         });
     };
 
@@ -388,6 +441,8 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
         setFormData({
             ...formData,
             school_year: `${currentYear}-${parseInt(currentYear) + 1}`,
+            position_tier: '',
+            selected_objective_ids: [],
         });
         setIsCreateModalOpen(true);
     };
@@ -417,6 +472,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
         
         setFormData({
             school_year: config.school_year,
+            position_tier: config.position_tier || '',
             kra_count: config.kra_count,
             objectives_per_kra: config.objectives_per_kra,
             selected_objective_ids: config.selected_objective_ids || [],
@@ -435,7 +491,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
         const selectedObjs = [];
         let counter = 1;
         
-        availableKras.forEach(kra => {
+        tierFilteredKras.forEach(kra => {
             const objectives = kra.objectives || [];
             objectives.forEach(obj => {
                 if (formData.selected_objective_ids.includes(obj.id)) {
@@ -461,8 +517,20 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
     };
 
     const handleCreate = () => {
+        if (isProcessing) return;
+
+        if (!formData.position_tier) {
+            toast.error('Please select the position tier this configuration applies to.');
+            return;
+        }
+
+        if (formData.selected_objective_ids.length === 0 && customObjectives.length === 0) {
+            toast.error(`Select at least one objective for ${formData.position_tier}, or add a custom objective.`);
+            return;
+        }
+
         // Calculate objectives_per_kra based on selected objectives
-        const objectivesPerKra = availableKras.map(kra => {
+        const objectivesPerKra = tierFilteredKras.map(kra => {
             const kraObjectives = kra.objectives || [];
             const selectedCount = kraObjectives.filter(obj => 
                 formData.selected_objective_ids.includes(obj.id)
@@ -493,10 +561,12 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
             ...formData,
             selected_objective_ids: realObjectiveIds,
             objectives_per_kra: objectivesPerKra,
+            kra_count: Math.max(objectivesPerKra.filter(count => count > 0).length, 1),
             custom_kras: customKrasData,
             custom_objectives: customObjectivesData,
         };
 
+        setIsProcessing(true);
         router.post(route('admin.ipcrf.configuration.store'), dataToSubmit, {
             onSuccess: () => {
                 setIsCreateModalOpen(false);
@@ -508,12 +578,31 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                     toast.error(errors[field]);
                 });
             },
+            onFinish: () => setIsProcessing(false),
         });
     };
 
     const handleUpdate = () => {
+        if (isProcessing) return;
+
+        if (!selectedConfig) {
+            toast.error('This configuration is no longer available. Please refresh the page.');
+            setIsEditModalOpen(false);
+            return;
+        }
+
+        if (!formData.position_tier) {
+            toast.error('Please select the position tier this configuration applies to.');
+            return;
+        }
+
+        if (formData.selected_objective_ids.length === 0 && customObjectives.length === 0) {
+            toast.error(`Select at least one objective for ${formData.position_tier}, or add a custom objective.`);
+            return;
+        }
+
         // Calculate objectives_per_kra based on selected objectives
-        const objectivesPerKra = availableKras.map(kra => {
+        const objectivesPerKra = tierFilteredKras.map(kra => {
             const kraObjectives = kra.objectives || [];
             const selectedCount = kraObjectives.filter(obj => 
                 formData.selected_objective_ids.includes(obj.id)
@@ -544,10 +633,12 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
             ...formData,
             selected_objective_ids: realObjectiveIds,
             objectives_per_kra: objectivesPerKra,
+            kra_count: Math.max(objectivesPerKra.filter(count => count > 0).length, 1),
             custom_kras: customKrasData,
             custom_objectives: customObjectivesData,
         };
 
+        setIsProcessing(true);
         router.put(route('admin.ipcrf.configuration.update', selectedConfig.id), dataToSubmit, {
             onSuccess: () => {
                 setIsEditModalOpen(false);
@@ -560,10 +651,14 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                     toast.error(errors[field]);
                 });
             },
+            onFinish: () => setIsProcessing(false),
         });
     };
 
     const handleDelete = () => {
+        if (!selectedConfig || isProcessing) return;
+
+        setIsProcessing(true);
         router.delete(route('admin.ipcrf.configuration.destroy', selectedConfig.id), {
             onSuccess: () => {
                 setIsDeleteModalOpen(false);
@@ -577,10 +672,14 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                     });
                 }
             },
+            onFinish: () => setIsProcessing(false),
         });
     };
 
     const handleToggleActive = (config) => {
+        if (isProcessing) return;
+
+        setIsProcessing(true);
         router.post(route('admin.ipcrf.configuration.toggle-active', config.id), {}, {
             onSuccess: () => {
                 toast.success(`Configuration ${config.is_active ? 'deactivated' : 'activated'} successfully!`);
@@ -592,10 +691,14 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                     });
                 }
             },
+            onFinish: () => setIsProcessing(false),
         });
     };
 
     const handleToggleLock = (config) => {
+        if (isProcessing) return;
+
+        setIsProcessing(true);
         router.post(route('admin.ipcrf.configuration.toggle-lock', config.id), {}, {
             onSuccess: () => {
                 toast.success(`Configuration ${config.is_locked ? 'unlocked' : 'locked'} successfully!`);
@@ -607,6 +710,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                     });
                 }
             },
+            onFinish: () => setIsProcessing(false),
         });
     };
 
@@ -649,6 +753,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                     weight: '',
                     order: '',
                     is_active: true,
+                    position_tiers: [],
                 });
                 toast.success('Objective added successfully!');
                 // Refresh objectives data
@@ -671,6 +776,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
             weight: objective.weight,
             order: objective.order,
             is_active: objective.is_active,
+            position_tiers: objective.position_tiers || [],
         });
         setShowEditObjectiveModal(true);
     };
@@ -687,6 +793,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                     weight: '',
                     order: '',
                     is_active: true,
+                    position_tiers: [],
                 });
                 toast.success('Objective updated successfully!');
                 // Refresh objectives data
@@ -805,6 +912,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                                 <TableHeader>
                                                     <TableRow>
                                                         <TableHead>School Year</TableHead>
+                                                        <TableHead>Position Tier</TableHead>
                                                         <TableHead className="text-center">KRAs</TableHead>
                                                         <TableHead className="text-center">Total Objectives</TableHead>
                                                         <TableHead className="text-center">Status</TableHead>
@@ -826,15 +934,30 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                                                     <p className="text-xs text-gray-500 mt-1">{config.notes}</p>
                                                                 )}
                                                             </TableCell>
+                                                            <TableCell>
+                                                                {config.position_tier ? (
+                                                                    <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-bold bg-green-100 text-green-700">
+                                                                        {config.position_tier}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600">
+                                                                        All tiers
+                                                                    </span>
+                                                                )}
+                                                            </TableCell>
                                                             <TableCell className="text-center">
                                                                 <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold">
                                                                     {config.kra_count}
                                                                 </span>
                                                             </TableCell>
                                                             <TableCell className="text-center">
-                                                                <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-purple-100 text-purple-700 font-bold">
+                                                                <button
+                                                                    onClick={openObjectivesModal}
+                                                                    className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-purple-100 text-purple-700 font-bold hover:bg-purple-200 hover:scale-110 transition-all cursor-pointer"
+                                                                    title="Click to manage objectives"
+                                                                >
                                                                     {config.selected_objective_ids ? config.selected_objective_ids.length : getTotalObjectives(config.objectives_per_kra)}
-                                                                </span>
+                                                                </button>
                                                             </TableCell>
                                                             <TableCell className="text-center">
                                                                 <Button
@@ -935,20 +1058,43 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                     <DialogHeader>
                         <DialogTitle>Create New Configuration</DialogTitle>
                         <DialogDescription>
-                            Select specific objectives from the available options and optionally add custom KRAs/objectives
+                            Pick the position tier first, then choose the KRAs/objectives that apply to that tier
                         </DialogDescription>
                     </DialogHeader>
                     
                     <div className="space-y-6">
-                        {/* School Year */}
-                        <div className="space-y-2">
-                            <Label htmlFor="school_year">School Year</Label>
-                            <Input
-                                id="school_year"
-                                value={formData.school_year}
-                                onChange={(e) => setFormData({ ...formData, school_year: e.target.value })}
-                                placeholder="e.g., 2024-2025"
-                            />
+                        {/* School Year + Position Tier */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="school_year">School Year</Label>
+                                <Input
+                                    id="school_year"
+                                    value={formData.school_year}
+                                    onChange={(e) => setFormData({ ...formData, school_year: e.target.value })}
+                                    placeholder="e.g., 2024-2025"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="position_tier">
+                                    Position Tier <span className="text-red-600">*</span>
+                                </Label>
+                                <select
+                                    id="position_tier"
+                                    className="w-full h-9 border rounded-md px-3 text-sm bg-white"
+                                    value={formData.position_tier}
+                                    onChange={(e) => handlePositionTierChange(e.target.value)}
+                                >
+                                    <option value="">Select position tier...</option>
+                                    {positionTierOptions.map((tier) => (
+                                        <option key={tier.value} value={tier.value}>
+                                            {tier.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="text-xs text-gray-500">
+                                    Each tier gets its own set of KRAs and objectives.
+                                </p>
+                            </div>
                         </div>
 
                         {/* Submission Dates */}
@@ -989,7 +1135,9 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                             </div>
                             
                             <p className="text-sm text-gray-600">
-                                Selected: {formData.selected_objective_ids.length} objective(s)
+                                {formData.position_tier
+                                    ? `Selected: ${formData.selected_objective_ids.length} of ${tierObjectiveIds.length} objective(s) designated for ${formData.position_tier}`
+                                    : 'Select a position tier above to load the objectives designated for it.'}
                             </p>
 
                             {/* Objectives by KRA */}
@@ -1104,7 +1252,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                                                 step="0.001"
                                                                 value={editObjectiveData.weight}
                                                                 onChange={(e) => setEditObjectiveData({ ...editObjectiveData, weight: e.target.value })}
-                                                                placeholder="Weight (e.g., 7.143)"
+                                                                placeholder="Weight (e.g., 6.786)"
                                                                 className="text-sm"
                                                             />
                                                             <div className="flex gap-2">
@@ -1131,6 +1279,20 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                                         <label htmlFor={`obj-${objective.id}`} className="text-sm cursor-pointer flex-1">
                                                             <span className="font-medium text-blue-600">{objective.code}</span>
                                                             <span className="text-gray-700"> - {objective.description}</span>
+                                                            {/* Position Tiers badges */}
+                                                            {objective.position_tiers && objective.position_tiers.length > 0 ? (
+                                                                <span className="ml-2 inline-flex gap-1">
+                                                                    {objective.position_tiers.map((tier) => (
+                                                                        <span key={tier} className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">
+                                                                            {tier}
+                                                                        </span>
+                                                                    ))}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="ml-2 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
+                                                                    All Positions
+                                                                </span>
+                                                            )}
                                                             {objective.is_custom && (
                                                                 <>
                                                                     <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Custom</span>
@@ -1239,9 +1401,9 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                         />
                                         <Input
                                             type="number"
-                                            placeholder="Weight (default: 7.143)"
+                                            placeholder="Weight (default: 6.786)"
                                             value={newObjective.weight}
-                                            onChange={(e) => setNewObjective({ ...newObjective, weight: e.target.value || '7.143' })}
+                                            onChange={(e) => setNewObjective({ ...newObjective, weight: e.target.value || '6.786' })}
                                             step="0.001"
                                         />
                                     </div>
@@ -1252,7 +1414,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                         </Button>
                                         <Button type="button" size="sm" variant="outline" onClick={() => {
                                             setShowAddObjectiveForm(false);
-                                            setNewObjective({ kra_id: '', code: '', description: '', weight: '7.143' });
+                                            setNewObjective({ kra_id: '', code: '', description: '', weight: '6.786' });
                                         }}>
                                             Cancel
                                         </Button>
@@ -1314,20 +1476,43 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                     <DialogHeader>
                         <DialogTitle>Edit Configuration</DialogTitle>
                         <DialogDescription>
-                            Select specific objectives from the available options and optionally add custom KRAs/objectives
+                            Adjust the KRAs/objectives designated for this position tier
                         </DialogDescription>
                     </DialogHeader>
                     
                     <div className="space-y-6">
-                        {/* School Year */}
-                        <div className="space-y-2">
-                            <Label htmlFor="edit_school_year">School Year</Label>
-                            <Input
-                                id="edit_school_year"
-                                value={formData.school_year}
-                                onChange={(e) => setFormData({ ...formData, school_year: e.target.value })}
-                                placeholder="e.g., 2024-2025"
-                            />
+                        {/* School Year + Position Tier */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="edit_school_year">School Year</Label>
+                                <Input
+                                    id="edit_school_year"
+                                    value={formData.school_year}
+                                    onChange={(e) => setFormData({ ...formData, school_year: e.target.value })}
+                                    placeholder="e.g., 2024-2025"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit_position_tier">
+                                    Position Tier <span className="text-red-600">*</span>
+                                </Label>
+                                <select
+                                    id="edit_position_tier"
+                                    className="w-full h-9 border rounded-md px-3 text-sm bg-white"
+                                    value={formData.position_tier}
+                                    onChange={(e) => handlePositionTierChange(e.target.value)}
+                                >
+                                    <option value="">Select position tier...</option>
+                                    {positionTierOptions.map((tier) => (
+                                        <option key={tier.value} value={tier.value}>
+                                            {tier.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="text-xs text-amber-600">
+                                    Changing the tier clears the current objective selection.
+                                </p>
+                            </div>
                         </div>
 
                         {/* Submission Dates */}
@@ -1368,7 +1553,9 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                             </div>
                             
                             <p className="text-sm text-gray-600">
-                                Selected: {formData.selected_objective_ids.length} objective(s)
+                                {formData.position_tier
+                                    ? `Selected: ${formData.selected_objective_ids.length} of ${tierObjectiveIds.length} objective(s) designated for ${formData.position_tier}`
+                                    : 'Select a position tier above to load the objectives designated for it.'}
                             </p>
 
                             {/* Objectives by KRA */}
@@ -1483,7 +1670,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                                                 step="0.001"
                                                                 value={editObjectiveData.weight}
                                                                 onChange={(e) => setEditObjectiveData({ ...editObjectiveData, weight: e.target.value })}
-                                                                placeholder="Weight (e.g., 7.143)"
+                                                                placeholder="Weight (e.g., 6.786)"
                                                                 className="text-sm"
                                                             />
                                                             <div className="flex gap-2">
@@ -1510,6 +1697,20 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                                         <label htmlFor={`edit-obj-${objective.id}`} className="text-sm cursor-pointer flex-1">
                                                             <span className="font-medium text-blue-600">{objective.code}</span>
                                                             <span className="text-gray-700"> - {objective.description}</span>
+                                                            {/* Position Tiers badges */}
+                                                            {objective.position_tiers && objective.position_tiers.length > 0 ? (
+                                                                <span className="ml-2 inline-flex gap-1">
+                                                                    {objective.position_tiers.map((tier) => (
+                                                                        <span key={tier} className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">
+                                                                            {tier}
+                                                                        </span>
+                                                                    ))}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="ml-2 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
+                                                                    All Positions
+                                                                </span>
+                                                            )}
                                                             {objective.is_custom && (
                                                                 <>
                                                                     <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Custom</span>
@@ -1618,9 +1819,9 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                         />
                                         <Input
                                             type="number"
-                                            placeholder="Weight (default: 7.143)"
+                                            placeholder="Weight (default: 6.786)"
                                             value={newObjective.weight}
-                                            onChange={(e) => setNewObjective({ ...newObjective, weight: e.target.value || '7.143' })}
+                                            onChange={(e) => setNewObjective({ ...newObjective, weight: e.target.value || '6.786' })}
                                             step="0.001"
                                         />
                                     </div>
@@ -1631,7 +1832,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                         </Button>
                                         <Button type="button" size="sm" variant="outline" onClick={() => {
                                             setShowAddObjectiveForm(false);
-                                            setNewObjective({ kra_id: '', code: '', description: '', weight: '7.143' });
+                                            setNewObjective({ kra_id: '', code: '', description: '', weight: '6.786' });
                                         }}>
                                             Cancel
                                         </Button>
@@ -1926,9 +2127,10 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Code</TableHead>
+                                        <TableHead>#</TableHead>
                                         <TableHead>Description</TableHead>
                                         <TableHead>KRA</TableHead>
+                                        <TableHead className="text-center">Position Tiers</TableHead>
                                         <TableHead className="text-center">Weight</TableHead>
                                         <TableHead className="text-center">Status</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
@@ -1937,7 +2139,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                 <TableBody>
                                     {objectivesData.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan="6" className="text-center py-8 text-gray-500">
+                                            <TableCell colSpan="7" className="text-center py-8 text-gray-500">
                                                 <Target className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                                                 No objectives found.
                                             </TableCell>
@@ -1960,7 +2162,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                                 if (kraIndex > 0) {
                                                     rows.push(
                                                         <TableRow key={`spacer-${kraName}`}>
-                                                            <TableCell colSpan="6" className="p-0">
+                                                            <TableCell colSpan="7" className="p-0">
                                                                 <div className="h-2 bg-gray-100"></div>
                                                             </TableCell>
                                                         </TableRow>
@@ -1969,7 +2171,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                                 
                                                 rows.push(
                                                     <TableRow key={`header-${kraName}`} className="bg-gradient-to-r from-blue-50 to-blue-100 border-b-2 border-blue-200">
-                                                        <TableCell colSpan="6" className="font-semibold text-blue-900 py-3 px-4">
+                                                        <TableCell colSpan="7" className="font-semibold text-blue-900 py-3 px-4">
                                                             <div className="flex items-center justify-between">
                                                                 <div className="flex items-center gap-2">
                                                                     <div className="w-1 h-6 bg-blue-600 rounded-full"></div>
@@ -2004,7 +2206,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                                 objectives.forEach((objective, objIndex) => {
                                                     rows.push(
                                                         <TableRow key={objective.id} className="hover:bg-blue-50/50">
-                                                            <TableCell className="font-medium pl-8">{objective.code}</TableCell>
+                                                            <TableCell className="font-medium pl-8">{objIndex + 1}</TableCell>
                                                             <TableCell className="max-w-md pl-8">
                                                                 <div className="truncate" title={objective.description}>
                                                                     {objective.description}
@@ -2014,6 +2216,24 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                                                     {objective.kra?.name || 'No KRA'}
                                                                 </span>
+                                                            </TableCell>
+                                                            <TableCell className="text-center">
+                                                                {objective.position_tiers && objective.position_tiers.length > 0 ? (
+                                                                    <div className="flex flex-wrap gap-1 justify-center">
+                                                                        {objective.position_tiers.map((tier) => (
+                                                                            <span 
+                                                                                key={tier} 
+                                                                                className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800"
+                                                                            >
+                                                                                {tier}
+                                                                            </span>
+                                                                        ))}
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                                                                        All Positions
+                                                                    </span>
+                                                                )}
                                                             </TableCell>
                                                             <TableCell className="text-center">
                                                                 <span className="font-medium">{objective.weight.toFixed ? objective.weight.toFixed(3) : objective.weight}%</span>
@@ -2091,35 +2311,23 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                     </DialogHeader>
                     
                     <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="add-kra">Key Result Area (KRA) *</Label>
-                                <Select 
-                                    value={objectiveFormData.kra_id ? String(objectiveFormData.kra_id) : ""} 
-                                    onValueChange={(value) => setObjectiveFormData({...objectiveFormData, kra_id: value})}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select KRA" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {defaultKras?.map((kra) => (
-                                            <SelectItem key={kra.id} value={String(kra.id)}>
-                                                {kra.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="add-code">Objective Code *</Label>
-                                <Input
-                                    id="add-code"
-                                    type="text"
-                                    value={objectiveFormData.code}
-                                    onChange={(e) => setObjectiveFormData({...objectiveFormData, code: e.target.value})}
-                                    placeholder="e.g., OBJ-001"
-                                />
-                            </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="add-kra">Key Result Area (KRA) *</Label>
+                            <Select 
+                                value={objectiveFormData.kra_id ? String(objectiveFormData.kra_id) : ""} 
+                                onValueChange={(value) => setObjectiveFormData({...objectiveFormData, kra_id: value})}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select KRA" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {defaultKras?.map((kra) => (
+                                        <SelectItem key={kra.id} value={String(kra.id)}>
+                                            {kra.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                         
                         <div className="space-y-2">
@@ -2170,6 +2378,33 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                 </div>
                             </div>
                         </div>
+                        
+                        {/* Position Tiers Selection */}
+                        <div className="space-y-2">
+                            <Label>Position Tiers (Leave empty for all positions)</Label>
+                            <div className="grid grid-cols-2 gap-2 p-3 border rounded-lg bg-gray-50">
+                                {positionTierOptions.map((tier) => (
+                                    <div key={tier.value} className="flex items-center space-x-2">
+                                        <Checkbox 
+                                            id={`add-tier-${tier.value}`}
+                                            checked={objectiveFormData.position_tiers?.includes(tier.value)}
+                                            onCheckedChange={(checked) => {
+                                                const newTiers = checked 
+                                                    ? [...(objectiveFormData.position_tiers || []), tier.value]
+                                                    : (objectiveFormData.position_tiers || []).filter(t => t !== tier.value);
+                                                setObjectiveFormData({...objectiveFormData, position_tiers: newTiers});
+                                            }}
+                                        />
+                                        <Label htmlFor={`add-tier-${tier.value}`} className="text-sm font-normal cursor-pointer">
+                                            {tier.label}
+                                        </Label>
+                                    </div>
+                                ))}
+                            </div>
+                            <p className="text-xs text-gray-500">
+                                Select which position tiers this objective applies to. If none selected, it will be available for all positions.
+                            </p>
+                        </div>
                     </div>
 
                     <DialogFooter>
@@ -2198,35 +2433,23 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                     </DialogHeader>
                     
                     <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="edit-kra">Key Result Area (KRA) *</Label>
-                                <Select 
-                                    value={objectiveFormData.kra_id ? String(objectiveFormData.kra_id) : ""} 
-                                    onValueChange={(value) => setObjectiveFormData({...objectiveFormData, kra_id: value})}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select KRA" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {defaultKras?.map((kra) => (
-                                            <SelectItem key={kra.id} value={String(kra.id)}>
-                                                {kra.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="edit-code">Objective Code *</Label>
-                                <Input
-                                    id="edit-code"
-                                    type="text"
-                                    value={objectiveFormData.code}
-                                    onChange={(e) => setObjectiveFormData({...objectiveFormData, code: e.target.value})}
-                                    placeholder="e.g., OBJ-001"
-                                />
-                            </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-kra">Key Result Area (KRA) *</Label>
+                            <Select 
+                                value={objectiveFormData.kra_id ? String(objectiveFormData.kra_id) : ""} 
+                                onValueChange={(value) => setObjectiveFormData({...objectiveFormData, kra_id: value})}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select KRA" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {defaultKras?.map((kra) => (
+                                        <SelectItem key={kra.id} value={String(kra.id)}>
+                                            {kra.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                         
                         <div className="space-y-2">
@@ -2275,6 +2498,33 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                     <Label htmlFor="edit_is_active">Active</Label>
                                 </div>
                             </div>
+                        </div>
+                        
+                        {/* Position Tiers Selection */}
+                        <div className="space-y-2">
+                            <Label>Position Tiers (Leave empty for all positions)</Label>
+                            <div className="grid grid-cols-2 gap-2 p-3 border rounded-lg bg-gray-50">
+                                {positionTierOptions.map((tier) => (
+                                    <div key={tier.value} className="flex items-center space-x-2">
+                                        <Checkbox 
+                                            id={`edit-tier-${tier.value}`}
+                                            checked={objectiveFormData.position_tiers?.includes(tier.value)}
+                                            onCheckedChange={(checked) => {
+                                                const newTiers = checked 
+                                                    ? [...(objectiveFormData.position_tiers || []), tier.value]
+                                                    : (objectiveFormData.position_tiers || []).filter(t => t !== tier.value);
+                                                setObjectiveFormData({...objectiveFormData, position_tiers: newTiers});
+                                            }}
+                                        />
+                                        <Label htmlFor={`edit-tier-${tier.value}`} className="text-sm font-normal cursor-pointer">
+                                            {tier.label}
+                                        </Label>
+                                    </div>
+                                ))}
+                            </div>
+                            <p className="text-xs text-gray-500">
+                                Select which position tiers this objective applies to. If none selected, it will be available for all positions.
+                            </p>
                         </div>
                     </div>
 

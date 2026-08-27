@@ -1,12 +1,23 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
-import { Upload, FileText, Trash2, X, ZoomIn, ZoomOut, Download, AlertTriangle, Info } from 'lucide-react';
+import { Upload, FileText, Trash2, X, ZoomIn, ZoomOut, Download, AlertTriangle, Info, ClipboardCheck } from 'lucide-react';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-export default function TeacherIpcrf({ kras, submissions, schoolYear, user, noActiveConfig, isLocked, message }) {
+export default function TeacherIpcrf({
+    kras,
+    submissions,
+    selfRatings,
+    selfRatingTotalWeight = 5,
+    selfRatingWeightPerKra,
+    schoolYear,
+    user,
+    noActiveConfig,
+    isLocked,
+    message,
+}) {
     const [uploadingFor, setUploadingFor] = useState(null);
     const [currentKraIndex, setCurrentKraIndex] = useState(0);
     const [viewingPdf, setViewingPdf] = useState(null);
@@ -14,12 +25,21 @@ export default function TeacherIpcrf({ kras, submissions, schoolYear, user, noAc
     const [deletingSubmission, setDeletingSubmission] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [showTeacherInfo, setShowTeacherInfo] = useState(false);
+    const [selfRatingFor, setSelfRatingFor] = useState(null);
+    const [deletingSelfRating, setDeletingSelfRating] = useState(null);
     const { data, setData, post, processing, errors, reset } = useForm({
         objective_id: '',
         competency_id: '',
         file: null,
         notes: '',
         school_year: schoolYear,
+    });
+
+    const selfRatingForm = useForm({
+        kra_id: '',
+        file: null,
+        self_rating: '',
+        notes: '',
     });
 
     // Show success toast on page load if there's a success message
@@ -100,6 +120,73 @@ export default function TeacherIpcrf({ kras, submissions, schoolYear, user, noAc
                     autoClose: 3000,
                 });
             }
+        });
+    };
+
+    // Self-rating helpers (one set of uploads per KRA)
+    const getSelfRatings = (kraId) => (selfRatings && selfRatings[kraId]) || [];
+
+    // The self-rating component is worth 5% of the overall 100%, split evenly
+    // across the KRAs. Objectives carry the remaining 95%.
+    const selfRatingWeight = Number(
+        selfRatingWeightPerKra ?? (kras && kras.length > 0 ? selfRatingTotalWeight / kras.length : 0)
+    );
+
+    // The scoring self-rating for a KRA is the most recent upload that carries a score
+    const getScoringSelfRating = (kraId) =>
+        getSelfRatings(kraId).find((item) => item.self_rating !== null && item.self_rating !== '') || null;
+
+    const openSelfRatingUpload = (kra) => {
+        setSelfRatingFor(kra);
+        selfRatingForm.setData({
+            kra_id: kra.id,
+            file: null,
+            self_rating: '',
+            notes: '',
+        });
+    };
+
+    const submitSelfRating = (e) => {
+        e.preventDefault();
+        selfRatingForm.post(route('teacher.ipcrf.self-rating.upload'), {
+            forceFormData: true,
+            onSuccess: () => {
+                setSelfRatingFor(null);
+                selfRatingForm.reset();
+                toast.success('Self-rating uploaded successfully!', {
+                    position: 'top-right',
+                    autoClose: 3000,
+                });
+            },
+            onError: (errs) => {
+                const first = errs && Object.values(errs)[0];
+                toast.error(first || 'Failed to upload self-rating. Please try again.', {
+                    position: 'top-right',
+                    autoClose: 3000,
+                });
+            },
+        });
+    };
+
+    const confirmDeleteSelfRating = () => {
+        setIsDeleting(true);
+        router.delete(route('teacher.ipcrf.self-rating.delete', deletingSelfRating), {
+            onSuccess: () => {
+                setDeletingSelfRating(null);
+                setIsDeleting(false);
+                toast.success('Self-rating removed successfully!', {
+                    position: 'top-right',
+                    autoClose: 3000,
+                });
+            },
+            onError: () => {
+                setDeletingSelfRating(null);
+                setIsDeleting(false);
+                toast.error('Failed to remove self-rating. Please try again.', {
+                    position: 'top-right',
+                    autoClose: 3000,
+                });
+            },
         });
     };
 
@@ -462,14 +549,36 @@ export default function TeacherIpcrf({ kras, submissions, schoolYear, user, noAc
                                                         }
                                                     });
                                                 });
-                                                
-                                                if (totalWeight > 0) {
+
+                                                // Self-rating adds its share of the 5% for every KRA that has one
+                                                let selfWeight = 0;
+                                                let selfWeighted = 0;
+                                                kras.forEach(kra => {
+                                                    if (getSelfRatings(kra.id).length === 0) return;
+
+                                                    selfWeight += selfRatingWeight;
+
+                                                    const scoring = getScoringSelfRating(kra.id);
+                                                    if (scoring) {
+                                                        selfWeighted += selfRatingWeight * Number(scoring.self_rating) / 5;
+                                                    }
+                                                });
+
+                                                const combinedWeight = totalWeight + selfWeight;
+                                                const combinedWeighted = weightedScore + selfWeighted;
+
+                                                if (combinedWeight > 0) {
                                                     return (
                                                         <div className="flex flex-col items-center gap-1">
-                                                            <span className="text-lg font-bold text-green-700">{totalWeight.toFixed(2)}%</span>
+                                                            <span className="text-lg font-bold text-green-700">{combinedWeight.toFixed(2)}%</span>
                                                             <span className="text-sm text-gray-600">
-                                                                (Weighted: {weightedScore.toFixed(2)}%)
+                                                                (Weighted: {combinedWeighted.toFixed(2)}%)
                                                             </span>
+                                                            {selfWeight > 0 && (
+                                                                <span className="text-xs text-amber-700 font-semibold">
+                                                                    incl. self-rating {selfWeight.toFixed(2)}%
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     );
                                                 }
@@ -481,6 +590,107 @@ export default function TeacherIpcrf({ kras, submissions, schoolYear, user, noAc
                             </table>
                         </div>
                     </div>
+
+                    {/* Self-Rating upload for the current KRA */}
+                    {currentKra && (
+                        <div className="mt-6 bg-white rounded-2xl shadow-lg border-2 border-amber-200 overflow-hidden">
+                            <div className="bg-gradient-to-r from-amber-50 to-yellow-50 px-6 py-4 border-b-2 border-amber-200">
+                                <div className="flex flex-wrap items-center justify-between gap-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-yellow-600 rounded-xl flex items-center justify-center shadow-lg">
+                                            <ClipboardCheck className="h-6 w-6 text-white" />
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <h4 className="text-lg font-bold text-gray-900">
+                                                    Self-Rating for KRA {currentKraIndex + 1}
+                                                </h4>
+                                                <span className="inline-flex items-center rounded-full bg-amber-200 px-2.5 py-0.5 text-xs font-bold text-amber-900">
+                                                    {selfRatingWeight.toFixed(2)}%
+                                                </span>
+                                            </div>
+                                            <p className="text-sm text-gray-600">
+                                                Upload your own rating sheet for {currentKra.name}
+                                            </p>
+                                            <p className="text-xs text-gray-500 mt-0.5">
+                                                Self-rating is worth {Number(selfRatingTotalWeight).toFixed(2)}% of the
+                                                total 100%, split across {kras.length} KRA{kras.length === 1 ? '' : 's'}.
+                                                Objectives carry the remaining {(100 - Number(selfRatingTotalWeight)).toFixed(2)}%.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <Button
+                                        onClick={() => openSelfRatingUpload(currentKra)}
+                                        className="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-bold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all"
+                                    >
+                                        <Upload className="h-4 w-4 mr-2" />
+                                        Upload Self-Rating
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="px-6 py-5">
+                                {getSelfRatings(currentKra.id).length === 0 ? (
+                                    <div className="flex items-start gap-3 p-4 bg-amber-50/60 rounded-xl border border-dashed border-amber-300">
+                                        <Info className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                                        <p className="text-sm text-amber-900">
+                                            No self-rating uploaded for this KRA yet. Attach your accomplished
+                                            self-rating sheet (PDF) so your rater can review it alongside your MOVs.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <ul className="space-y-3">
+                                        {getSelfRatings(currentKra.id).map((item) => (
+                                            <li
+                                                key={item.id}
+                                                className="flex flex-wrap items-center justify-between gap-3 p-4 bg-gray-50 rounded-xl border-2 border-gray-200"
+                                            >
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <FileText className="h-5 w-5 text-amber-600 flex-shrink-0" />
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-semibold text-gray-900 truncate">
+                                                            {item.original_name || 'Self-rating document'}
+                                                        </p>
+                                                        <p className="text-xs text-gray-500">
+                                                            Uploaded {new Date(item.created_at).toLocaleDateString()}
+                                                            {item.self_rating ? ` • Self-rating: ${Number(item.self_rating).toFixed(2)}/5` : ''}
+                                                        </p>
+                                                        {item.notes && (
+                                                            <p className="text-xs text-gray-600 mt-1 italic">{item.notes}</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => setViewingPdf({
+                                                            path: item.file_path,
+                                                            title: `Self-Rating - ${currentKra.name}`,
+                                                        })}
+                                                        className="border-2 border-amber-300 text-amber-700 hover:bg-amber-50 font-semibold"
+                                                    >
+                                                        <FileText className="h-3 w-3 mr-1" />
+                                                        View
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => setDeletingSelfRating(item.id)}
+                                                        className="border-2 border-red-300 text-red-600 hover:bg-red-50 font-semibold"
+                                                    >
+                                                        <Trash2 className="h-3 w-3" />
+                                                    </Button>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Take Survey Call-to-Action */}
                     {Object.keys(submissions).length > 0 && (
@@ -701,6 +911,168 @@ export default function TeacherIpcrf({ kras, submissions, schoolYear, user, noAc
                                     </Button>
                                 </div>
                             </form>
+                        </div>
+                    </div>
+                )}
+
+                {/* Self-Rating Upload Modal */}
+                {selfRatingFor && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+                        <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl animate-in zoom-in-95 duration-200">
+                            {/* Modal Header */}
+                            <div className="flex items-center gap-3 px-6 py-5 border-b-2 border-amber-100 bg-gradient-to-r from-amber-50 to-yellow-50 rounded-t-2xl">
+                                <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-yellow-600 rounded-xl flex items-center justify-center shadow-lg">
+                                    <ClipboardCheck className="h-6 w-6 text-white" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold text-gray-900">Upload Self-Rating</h3>
+                                    <p className="text-sm text-gray-600 font-medium">
+                                        KRA: {selfRatingFor.name}
+                                    </p>
+                                    <p className="text-xs text-amber-800 font-semibold">
+                                        Worth {selfRatingWeight.toFixed(2)}% of the total 100%
+                                    </p>
+                                </div>
+                            </div>
+
+                            <form onSubmit={submitSelfRating}>
+                                <div className="px-6 py-6 space-y-5">
+                                    <div>
+                                        <label className="block text-base font-bold text-gray-800 mb-3">
+                                            Self-Rating Document (PDF)
+                                        </label>
+                                        <input
+                                            type="file"
+                                            accept=".pdf"
+                                            onChange={(e) => selfRatingForm.setData('file', e.target.files[0])}
+                                            className="block w-full text-base text-gray-700 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-base file:font-bold file:bg-gradient-to-r file:from-amber-500 file:to-yellow-600 file:text-white hover:file:from-amber-600 hover:file:to-yellow-700 file:shadow-lg hover:file:shadow-xl file:transition-all file:duration-200 cursor-pointer border-2 border-dashed border-gray-300 rounded-xl p-4 hover:border-amber-400 transition-colors bg-gray-50"
+                                            required
+                                        />
+                                        {selfRatingForm.errors.file && (
+                                            <div className="flex items-center gap-2 mt-2 text-red-600">
+                                                <AlertTriangle className="h-4 w-4" />
+                                                <p className="text-sm font-medium">{selfRatingForm.errors.file}</p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-base font-bold text-gray-800 mb-3">
+                                            Your Self-Rating (1 - 5)
+                                        </label>
+                                        <p className="text-sm text-gray-600 mb-2">
+                                            Your score is converted to this KRA&apos;s {selfRatingWeight.toFixed(2)}% share.
+                                            Leave blank to upload the document only.
+                                        </p>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            min="1"
+                                            max="5"
+                                            value={selfRatingForm.data.self_rating}
+                                            onChange={(e) => selfRatingForm.setData('self_rating', e.target.value)}
+                                            className="block w-full text-base rounded-xl border-2 border-gray-300 shadow-sm focus:border-amber-500 focus:ring-4 focus:ring-amber-200 transition-all p-4"
+                                            placeholder="Rate yourself from 1 to 5 for this KRA"
+                                        />
+                                        {selfRatingForm.errors.self_rating && (
+                                            <div className="flex items-center gap-2 mt-2 text-red-600">
+                                                <AlertTriangle className="h-4 w-4" />
+                                                <p className="text-sm font-medium">{selfRatingForm.errors.self_rating}</p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-base font-bold text-gray-800 mb-3">
+                                            Notes (Optional)
+                                        </label>
+                                        <textarea
+                                            value={selfRatingForm.data.notes}
+                                            onChange={(e) => selfRatingForm.setData('notes', e.target.value)}
+                                            rows="4"
+                                            className="block w-full text-base rounded-xl border-2 border-gray-300 shadow-sm focus:border-amber-500 focus:ring-4 focus:ring-amber-200 transition-all p-4 resize-none"
+                                            placeholder="Explain how you arrived at this self-rating..."
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Modal Footer */}
+                                <div className="flex items-center justify-end gap-3 px-6 py-5 bg-gray-50 rounded-b-2xl border-t border-gray-200">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setSelfRatingFor(null)}
+                                        disabled={selfRatingForm.processing}
+                                        className="px-8 py-3 text-base font-bold border-2 border-gray-300 hover:bg-gray-100 rounded-xl transition-all disabled:opacity-50"
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        type="submit"
+                                        disabled={selfRatingForm.processing}
+                                        className="px-8 py-3 text-base font-bold bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white shadow-lg hover:shadow-xl rounded-xl transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
+                                    >
+                                        {selfRatingForm.processing ? (
+                                            <>
+                                                <svg className="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                Uploading...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Upload className="h-5 w-5 mr-2" />
+                                                Upload Self-Rating
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
+                {/* Delete Self-Rating Confirmation */}
+                {deletingSelfRating && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+                        <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+                            <div className="flex items-center gap-3 px-6 py-5 border-b-2 border-red-100 bg-red-50 rounded-t-2xl">
+                                <div className="w-12 h-12 bg-red-500 rounded-xl flex items-center justify-center shadow-lg">
+                                    <AlertTriangle className="h-6 w-6 text-white" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold text-gray-900">Remove Self-Rating?</h3>
+                                    <p className="text-sm text-gray-600 font-medium">This cannot be undone.</p>
+                                </div>
+                            </div>
+
+                            <div className="px-6 py-5">
+                                <p className="text-base text-gray-700">
+                                    The uploaded self-rating document will be permanently deleted. You can upload a
+                                    new one afterwards.
+                                </p>
+                            </div>
+
+                            <div className="flex items-center justify-end gap-3 px-6 py-5 bg-gray-50 rounded-b-2xl border-t border-gray-200">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setDeletingSelfRating(null)}
+                                    disabled={isDeleting}
+                                    className="px-8 py-3 text-base font-bold border-2 border-gray-300 hover:bg-gray-100 rounded-xl transition-all disabled:opacity-50"
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="button"
+                                    onClick={confirmDeleteSelfRating}
+                                    disabled={isDeleting}
+                                    className="px-8 py-3 text-base font-bold bg-red-600 hover:bg-red-700 text-white shadow-lg hover:shadow-xl rounded-xl transition-all disabled:opacity-70"
+                                >
+                                    {isDeleting ? 'Removing...' : 'Remove'}
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 )}

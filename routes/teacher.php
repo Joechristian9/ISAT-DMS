@@ -9,6 +9,8 @@ Route::prefix('teacher')->name('teacher.')->middleware(['auth', 'teacher'])->gro
     // IPCRF Routes
     Route::get('/ipcrf', [\App\Http\Controllers\Teacher\IpcrfController::class, 'index'])->name('ipcrf');
     Route::post('/ipcrf/upload', [\App\Http\Controllers\Teacher\IpcrfController::class, 'upload'])->name('ipcrf.upload');
+    Route::post('/ipcrf/self-rating', [\App\Http\Controllers\Teacher\IpcrfController::class, 'uploadSelfRating'])->name('ipcrf.self-rating.upload');
+    Route::delete('/ipcrf/self-rating/{selfRating}', [\App\Http\Controllers\Teacher\IpcrfController::class, 'deleteSelfRating'])->name('ipcrf.self-rating.delete');
     Route::delete('/ipcrf/{submission}', [\App\Http\Controllers\Teacher\IpcrfController::class, 'deleteFile'])->name('ipcrf.delete');
     
     // Signed IPCRF Routes

@@ -4,7 +4,6 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Database\Seeders\KraSeeder;
-use Database\Seeders\ObjectiveSeeder;
 use App\Models\Kra;
 use App\Models\Objective;
 
@@ -15,38 +14,27 @@ class SeedKrasAndObjectives extends Command
      *
      * @var string
      */
-    protected $signature = 'ipcrf:seed-kras-objectives {--fresh : Delete existing KRAs and Objectives before seeding}';
+    protected $signature = 'ipcrf:seed-kras';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Seed standard IPCRF KRAs and Objectives';
+    protected $description = 'Seed the standard IPCRF KRAs. Objectives are managed in the database, not seeded.';
 
     /**
      * Execute the console command.
      */
     public function handle()
     {
-        if ($this->option('fresh')) {
-            $this->info('Deleting existing KRAs and Objectives...');
-            Objective::query()->delete();
-            Kra::query()->delete();
-        }
-
         $this->info('Seeding KRAs...');
         $this->call(KraSeeder::class);
 
-        $this->info('Seeding Objectives...');
-        $this->call(ObjectiveSeeder::class);
+        $this->info('KRAs seeded successfully.');
+        $this->line("Total KRAs: " . Kra::count());
+        $this->line("Total Objectives (managed in database): " . Objective::count());
 
-        $this->info('✅ Standard IPCRF KRAs and Objectives seeded successfully!');
-        
-        $kraCount = Kra::count();
-        $objectiveCount = Objective::count();
-        
-        $this->info("📊 Total KRAs: {$kraCount}");
-        $this->info("📊 Total Objectives: {$objectiveCount}");
+        return self::SUCCESS;
     }
 }

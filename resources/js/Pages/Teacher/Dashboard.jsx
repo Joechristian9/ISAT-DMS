@@ -66,6 +66,19 @@ export default function TeacherDashboard({ user, activeConfig, submissions, sign
                             Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-green-300 to-green-400 animate-pulse">{user.name.split(' ')[0]}</span>
                         </h1>
                         
+                        {/* Position/Tier Badge */}
+                        {(user.position_range || user.position_career_stage) && (
+                            <div className="inline-flex items-center gap-3 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 backdrop-blur-sm border-2 border-amber-400/50 rounded-full px-6 py-3 mb-4">
+                                <Award className="h-6 w-6 text-amber-400" />
+                                <div className="text-left">
+                                    <p className="text-xs text-amber-200 font-medium uppercase tracking-wider">Your Position Tier</p>
+                                    <p className="text-lg font-bold text-amber-300">
+                                        {user.position_range || ''} {user.position_range && user.position_career_stage ? '•' : ''} {user.position_career_stage || ''}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                        
                         <p className="text-lg sm:text-xl text-gray-200 max-w-3xl mx-auto leading-relaxed font-medium mb-4">
                             Your journey to excellence starts here. Let's make today count.
                         </p>
@@ -99,6 +112,11 @@ export default function TeacherDashboard({ user, activeConfig, submissions, sign
                                             <p className="text-lg text-white mb-2 font-bold">
                                                 Your Professional Development Dashboard
                                             </p>
+                                            {(user.position_range || user.position_career_stage) && (
+                                                <p className="text-sm text-white/80 mb-2 font-medium bg-white/20 inline-block px-3 py-1 rounded-full">
+                                                    Using: {user.position_range || ''} {user.position_career_stage ? `(${user.position_career_stage})` : ''} IPCRF Form
+                                                </p>
+                                            )}
                                             <p className="text-base text-white/95 max-w-2xl">
                                                 Everything you need to document achievements, submit evidence, and elevate your teaching career.
                                             </p>
