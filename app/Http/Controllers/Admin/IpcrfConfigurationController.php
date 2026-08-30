@@ -36,14 +36,12 @@ class IpcrfConfigurationController extends Controller
         ->orderBy('position_tier')
         ->get();
         
-        // Get all default (system) KRAs with their objectives
+        // Every KRA with every objective, whatever their status. Inactive items
+        // are shown unselected and badged rather than hidden, so nothing the
+        // admin created can silently vanish from this screen.
         $kras = \App\Models\Kra::with(['objectives' => function ($query) {
-            $query->where('is_active', true)
-                  ->whereNull('ipcrf_configuration_id') // Only default objectives
-                  ->orderBy('order');
+            $query->orderBy('order');
         }])
-        ->where('is_active', true)
-        ->whereNull('ipcrf_configuration_id') // Only default KRAs
         ->orderBy('order')
         ->get();
         
@@ -71,10 +69,13 @@ class IpcrfConfigurationController extends Controller
             'selected_objective_ids' => 'nullable|array',
             'selected_objective_ids.*' => 'required|integer',
             'custom_kras' => 'nullable|array',
+            'custom_kras.*.temp_id' => 'nullable|string|max:100',
             'custom_kras.*.name' => 'required|string|max:255',
             'custom_kras.*.description' => 'nullable|string',
             'custom_objectives' => 'nullable|array',
-            'custom_objectives.*.kra_id' => 'required|integer',
+            // May be an existing KRA id or the client-side temp id of a custom
+            // KRA being created in the same request
+            'custom_objectives.*.kra_id' => 'required',
             'custom_objectives.*.code' => 'required|string|max:50',
             'custom_objectives.*.description' => 'required|string|max:500',
             'custom_objectives.*.weight' => 'nullable|numeric|min:0|max:100',
@@ -94,6 +95,10 @@ class IpcrfConfigurationController extends Controller
                 ->withInput();
         }
 
+        if ($error = $this->validateCustomObjectiveKras($validated)) {
+            return redirect()->back()->withErrors($error)->withInput();
+        }
+
         $configuration = IpcrfConfiguration::create([
             'school_year' => $validated['school_year'],
             'position_tier' => $validated['position_tier'],
@@ -103,42 +108,7 @@ class IpcrfConfigurationController extends Controller
             'notes' => $validated['notes'] ?? null,
         ]);
 
-        // Create custom KRAs if provided
-        if (!empty($validated['custom_kras'])) {
-            foreach ($validated['custom_kras'] as $index => $kraData) {
-                \App\Models\Kra::create([
-                    'name' => $kraData['name'],
-                    'description' => $kraData['description'] ?? null,
-                    'order' => 100 + $index, // Start at 100 to avoid conflicts with default KRAs
-                    'is_active' => true,
-                    'is_custom' => true,
-                    'position_tiers' => [$configuration->position_tier],
-                    'ipcrf_configuration_id' => $configuration->id,
-                ]);
-            }
-        }
-
-        // Create custom objectives if provided
-        if (!empty($validated['custom_objectives'])) {
-            foreach ($validated['custom_objectives'] as $objData) {
-                $objective = \App\Models\Objective::create([
-                    'kra_id' => $objData['kra_id'], // This should be the actual KRA ID
-                    'code' => $objData['code'],
-                    'description' => $objData['description'],
-                    'weight' => $objData['weight'] ?? 7.00,
-                    'order' => 100, // Custom objectives at end
-                    'is_active' => true,
-                    'is_custom' => true,
-                    'position_tiers' => [$configuration->position_tier],
-                    'ipcrf_configuration_id' => $configuration->id,
-                ]);
-                
-                // Add the new custom objective to selected_objective_ids
-                $selectedIds = $configuration->selected_objective_ids;
-                $selectedIds[] = $objective->id;
-                $configuration->update(['selected_objective_ids' => $selectedIds]);
-            }
-        }
+        $this->syncCustomItems($validated, $configuration);
 
         // Log the action
         $this->auditLogService->log(
@@ -173,10 +143,13 @@ class IpcrfConfigurationController extends Controller
             'selected_objective_ids' => 'nullable|array',
             'selected_objective_ids.*' => 'required|integer',
             'custom_kras' => 'nullable|array',
+            'custom_kras.*.temp_id' => 'nullable|string|max:100',
             'custom_kras.*.name' => 'required|string|max:255',
             'custom_kras.*.description' => 'nullable|string',
             'custom_objectives' => 'nullable|array',
-            'custom_objectives.*.kra_id' => 'required|integer',
+            // May be an existing KRA id or the client-side temp id of a custom
+            // KRA being created in the same request
+            'custom_objectives.*.kra_id' => 'required',
             'custom_objectives.*.code' => 'required|string|max:50',
             'custom_objectives.*.description' => 'required|string|max:500',
             'custom_objectives.*.weight' => 'nullable|numeric|min:0|max:100',
@@ -196,6 +169,10 @@ class IpcrfConfigurationController extends Controller
                 ->withInput();
         }
 
+        if ($error = $this->validateCustomObjectiveKras($validated)) {
+            return redirect()->back()->withErrors($error)->withInput();
+        }
+
         $configuration->update([
             'school_year' => $validated['school_year'],
             'position_tier' => $validated['position_tier'],
@@ -205,42 +182,7 @@ class IpcrfConfigurationController extends Controller
             'notes' => $validated['notes'] ?? null,
         ]);
 
-        // Create custom KRAs if provided
-        if (!empty($validated['custom_kras'])) {
-            foreach ($validated['custom_kras'] as $index => $kraData) {
-                \App\Models\Kra::create([
-                    'name' => $kraData['name'],
-                    'description' => $kraData['description'] ?? null,
-                    'order' => 100 + $index, // Start at 100 to avoid conflicts with default KRAs
-                    'is_active' => true,
-                    'is_custom' => true,
-                    'position_tiers' => [$configuration->position_tier],
-                    'ipcrf_configuration_id' => $configuration->id,
-                ]);
-            }
-        }
-
-        // Create custom objectives if provided
-        if (!empty($validated['custom_objectives'])) {
-            foreach ($validated['custom_objectives'] as $objData) {
-                $objective = \App\Models\Objective::create([
-                    'kra_id' => $objData['kra_id'], // This should be the actual KRA ID
-                    'code' => $objData['code'],
-                    'description' => $objData['description'],
-                    'weight' => $objData['weight'] ?? 7.00,
-                    'order' => 100, // Custom objectives at end
-                    'is_active' => true,
-                    'is_custom' => true,
-                    'position_tiers' => [$configuration->position_tier],
-                    'ipcrf_configuration_id' => $configuration->id,
-                ]);
-                
-                // Add the new custom objective to selected_objective_ids
-                $selectedIds = $configuration->selected_objective_ids;
-                $selectedIds[] = $objective->id;
-                $configuration->update(['selected_objective_ids' => $selectedIds]);
-            }
-        }
+        $this->syncCustomItems($validated, $configuration);
 
         // Log the action
         $this->auditLogService->log(
@@ -338,6 +280,120 @@ class IpcrfConfigurationController extends Controller
         );
 
         return redirect()->back()->with('success', 'Configuration lock status updated!');
+    }
+
+    /**
+     * Check up front that every custom objective points at a KRA we can resolve:
+     * either an existing KRA row, or the temp id of a custom KRA in this request.
+     *
+     * @return array<string, string>|null  Validation errors, or null when valid.
+     */
+    protected function validateCustomObjectiveKras(array $validated): ?array
+    {
+        if (empty($validated['custom_objectives'])) {
+            return null;
+        }
+
+        $tempIds = collect($validated['custom_kras'] ?? [])
+            ->pluck('temp_id')
+            ->filter()
+            ->all();
+
+        foreach ($validated['custom_objectives'] as $index => $objData) {
+            $kraId = $objData['kra_id'];
+
+            if (is_numeric($kraId) && \App\Models\Kra::whereKey((int) $kraId)->exists()) {
+                continue;
+            }
+
+            if (in_array((string) $kraId, $tempIds, true)) {
+                continue;
+            }
+
+            return [
+                "custom_objectives.{$index}.kra_id" =>
+                    'Custom objective "' . ($objData['code'] ?? $index + 1)
+                    . '" is not attached to a valid KRA. Please pick a KRA for it.',
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * Create the custom KRAs and objectives for a configuration.
+     *
+     * Custom KRAs are created first so their new database ids can be mapped
+     * back to the client-side temp ids their objectives reference.
+     */
+    protected function syncCustomItems(array $validated, IpcrfConfiguration $configuration): void
+    {
+        $kraIdMap = [];
+
+        if (!empty($validated['custom_kras'])) {
+            foreach ($validated['custom_kras'] as $index => $kraData) {
+                $kra = \App\Models\Kra::create([
+                    'name' => $kraData['name'],
+                    'description' => $kraData['description'] ?? null,
+                    'order' => 100 + $index, // Keep clear of the default KRAs
+                    'is_active' => true,
+                    'is_custom' => true,
+                    'position_tiers' => [$configuration->position_tier],
+                    'ipcrf_configuration_id' => $configuration->id,
+                ]);
+
+                if (!empty($kraData['temp_id'])) {
+                    $kraIdMap[$kraData['temp_id']] = $kra->id;
+                }
+            }
+        }
+
+        if (empty($validated['custom_objectives'])) {
+            return;
+        }
+
+        $selectedIds = $configuration->selected_objective_ids ?? [];
+
+        foreach ($validated['custom_objectives'] as $objData) {
+            $kraId = $this->resolveKraId($objData['kra_id'], $kraIdMap);
+
+            if (!$kraId) {
+                continue;
+            }
+
+            $objective = \App\Models\Objective::create([
+                'kra_id' => $kraId,
+                'code' => $objData['code'],
+                'description' => $objData['description'],
+                'weight' => $objData['weight'] ?? 6.786,
+                'order' => 100, // Custom objectives sit at the end
+                'is_active' => true,
+                'is_custom' => true,
+                'position_tiers' => [$configuration->position_tier],
+                'ipcrf_configuration_id' => $configuration->id,
+            ]);
+
+            $selectedIds[] = $objective->id;
+        }
+
+        // Single write instead of one per objective
+        $configuration->update(['selected_objective_ids' => array_values(array_unique($selectedIds))]);
+    }
+
+    /**
+     * Turn a submitted kra_id into a real KRA id.
+     */
+    protected function resolveKraId(mixed $kraId, array $kraIdMap): ?int
+    {
+        if (isset($kraIdMap[(string) $kraId])) {
+            return $kraIdMap[(string) $kraId];
+        }
+
+        if (is_numeric($kraId) && \App\Models\Kra::whereKey((int) $kraId)->exists()) {
+            return (int) $kraId;
+        }
+
+        return null;
     }
 
     /**

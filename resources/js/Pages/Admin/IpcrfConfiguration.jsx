@@ -125,8 +125,11 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
         
         // Start with default KRAs
         const merged = defaultKras.map(kra => {
-            // Find custom objectives for this default KRA
-            const customObjsForThisKra = customObjectives.filter(obj => obj.kra_id === kra.id);
+            // Compared as strings: the KRA <select> yields "3" while the KRA id
+            // is the number 3, and a strict match would silently drop objectives
+            const customObjsForThisKra = customObjectives.filter(
+                obj => String(obj.kra_id) === String(kra.id)
+            );
             
             if (customObjsForThisKra.length > 0) {
                 // Merge custom objectives with default objectives
@@ -140,8 +143,9 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
         
         // Add custom KRAs with their objectives
         customKras.forEach(customKra => {
-            // Find objectives for this custom KRA
-            const objsForCustomKra = customObjectives.filter(obj => obj.kra_id === customKra.id);
+            const objsForCustomKra = customObjectives.filter(
+                obj => String(obj.kra_id) === String(customKra.id)
+            );
             merged.push({
                 ...customKra,
                 objectives: objsForCustomKra
@@ -175,13 +179,15 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
             return tiers.includes(formData.position_tier);
         };
 
+        // Every KRA for this tier is kept, including ones with no objectives yet.
+        // A newly added custom KRA starts empty and must still be visible so
+        // objectives can be attached to it.
         return allKras
             .filter(matchesTier)
             .map((kra) => ({
                 ...kra,
                 objectives: (kra.objectives || []).filter(matchesTier),
-            }))
-            .filter((kra) => kra.objectives.length > 0);
+            }));
     }, [allKras, formData.position_tier]);
 
     // The configuration modals only ever work with the selected tier's KRAs
@@ -193,12 +199,42 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
         [tierFilteredKras]
     );
 
-    // Changing the tier drops any selections that no longer belong to it
+    // How many of those are inactive, so the count can explain itself
+    const inactiveTierCount = React.useMemo(
+        () => tierFilteredKras.reduce(
+            (total, kra) => total + kra.objectives.filter((obj) => obj.is_active === false).length,
+            0
+        ),
+        [tierFilteredKras]
+    );
+
+    // Active objective ids for a tier. Inactive objectives are still listed,
+    // but are never auto-selected.
+    const objectiveIdsForTier = (tier) => {
+        if (!tier) return [];
+
+        const matchesTier = (item) => {
+            const tiers = item.position_tiers;
+            if (!tiers || tiers.length === 0) return true;
+            return tiers.includes(tier);
+        };
+
+        return allKras
+            .filter(matchesTier)
+            .flatMap((kra) =>
+                (kra.objectives || [])
+                    .filter(matchesTier)
+                    .filter((obj) => obj.is_active !== false)
+                    .map((obj) => obj.id)
+            );
+    };
+
+    // Changing the tier pre-selects every active objective designated for it
     const handlePositionTierChange = (tier) => {
         setFormData((prev) => ({
             ...prev,
             position_tier: tier,
-            selected_objective_ids: [],
+            selected_objective_ids: objectiveIdsForTier(tier),
         }));
     };
 
@@ -253,10 +289,32 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
         toast.success('Custom KRA added!');
     };
 
+    // A saved row has a numeric database id; anything added in this session
+    // still carries a client-side temp id like "custom_kra_1756...".
+    const isSavedRow = (id) => typeof id === 'number' || /^\d+$/.test(String(id));
+
     const handleRemoveCustomKra = (kraId) => {
+        // Saved KRAs are deleted in the database
+        if (isSavedRow(kraId)) {
+            if (!window.confirm('Delete this KRA? This cannot be undone.')) return;
+
+            router.delete(route('admin.ipcrf.kra.delete', kraId), {
+                preserveScroll: true,
+                onSuccess: () => toast.success('KRA deleted'),
+                onError: (errs) => toast.error(Object.values(errs)[0] || 'Failed to delete KRA'),
+            });
+            return;
+        }
+
         setCustomKras(customKras.filter(k => k.id !== kraId));
         // Also remove objectives for this KRA
         setCustomObjectives(customObjectives.filter(o => o.kra_id !== kraId));
+        setFormData(prev => ({
+            ...prev,
+            selected_objective_ids: prev.selected_objective_ids.filter(
+                id => !customObjectives.some(o => o.id === id && o.kra_id === kraId)
+            ),
+        }));
         toast.success('Custom KRA removed');
     };
 
@@ -272,6 +330,23 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
     const handleSaveKraEdit = () => {
         if (!editKraData.name.trim()) {
             toast.error('KRA name is required');
+            return;
+        }
+
+        // Saved KRAs are written back to the database
+        if (isSavedRow(editingKra)) {
+            router.put(route('admin.ipcrf.kra.update', editingKra), {
+                name: editKraData.name,
+                description: editKraData.description,
+            }, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setEditingKra(null);
+                    setEditKraData({ name: '', description: '' });
+                    toast.success('KRA updated successfully!');
+                },
+                onError: (errs) => toast.error(Object.values(errs)[0] || 'Failed to update KRA'),
+            });
             return;
         }
 
@@ -327,6 +402,26 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
     };
 
     const handleRemoveCustomObjective = (objId) => {
+        // Saved objectives are deleted in the database
+        if (isSavedRow(objId)) {
+            if (!window.confirm('Delete this objective? This cannot be undone.')) return;
+
+            // Literal path: the objective.* route names are duplicated in
+            // routes/admin.php and resolve to a legacy handler.
+            router.delete(`/admin/ipcrf/objectives/${objId}`, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setFormData(prev => ({
+                        ...prev,
+                        selected_objective_ids: prev.selected_objective_ids.filter(id => id !== objId),
+                    }));
+                    toast.success('Objective deleted');
+                },
+                onError: (errs) => toast.error(Object.values(errs)[0] || 'Failed to delete objective'),
+            });
+            return;
+        }
+
         setCustomObjectives(customObjectives.filter(o => o.id !== objId));
         setFormData({
             ...formData,
@@ -342,7 +437,10 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
             kra_id: objective.kra_id,
             code: objective.code,
             description: objective.description,
-            weight: objective.weight.toString()
+            weight: objective.weight.toString(),
+            // Preserved so saving an inline edit does not wipe them
+            order: objective.order,
+            position_tiers: objective.position_tiers || [],
         });
     };
 
@@ -353,6 +451,30 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
         }
         if (!editObjectiveData.code.trim() || !editObjectiveData.description.trim()) {
             toast.error('Code and description are required');
+            return;
+        }
+
+        // Saved objectives are written back to the database
+        if (isSavedRow(editingObjective)) {
+            // Literal path, same reason as the delete above
+            router.put(`/admin/ipcrf/objectives/${editingObjective}`, {
+                kra_id: editObjectiveData.kra_id,
+                // Sent explicitly so a meaningful code like "1.1.2" is kept
+                code: editObjectiveData.code,
+                description: editObjectiveData.description,
+                weight: parseFloat(editObjectiveData.weight) || 6.786,
+                order: editObjectiveData.order || 1,
+                is_active: true,
+                position_tiers: editObjectiveData.position_tiers || [],
+            }, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setEditingObjective(null);
+                    setEditObjectiveData({ kra_id: '', code: '', description: '', weight: '' });
+                    toast.success('Objective updated successfully!');
+                },
+                onError: (errs) => toast.error(Object.values(errs)[0] || 'Failed to update objective'),
+            });
             return;
         }
 
@@ -390,10 +512,11 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
         });
     };
 
+    // Select All covers the active objectives only
     const handleSelectAllObjectives = () => {
         setFormData({
             ...formData,
-            selected_objective_ids: tierObjectiveIds,
+            selected_objective_ids: objectiveIdsForTier(formData.position_tier),
         });
     };
 
@@ -450,25 +573,10 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
     const openEditModal = (config) => {
         setSelectedConfig(config);
         
-        // Reset custom states first
+        // Already-saved custom KRAs and objectives now arrive with the full KRA
+        // list from the backend, so these hold only what is added in this session.
         setCustomKras([]);
         setCustomObjectives([]);
-        
-        // Load custom KRAs if they exist
-        if (config.custom_kras && config.custom_kras.length > 0) {
-            setCustomKras(config.custom_kras);
-        }
-        
-        // Load custom objectives if they exist (flatten from custom KRAs)
-        if (config.custom_kras && config.custom_kras.length > 0) {
-            const allCustomObjectives = config.custom_kras.flatMap(kra => 
-                kra.objectives ? kra.objectives.map(obj => ({
-                    ...obj,
-                    kra_id: kra.id
-                })) : []
-            );
-            setCustomObjectives(allCustomObjectives);
-        }
         
         setFormData({
             school_year: config.school_year,
@@ -540,6 +648,8 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
 
         // Prepare custom KRAs data
         const customKrasData = customKras.map(kra => ({
+            // Sent so the backend can map objectives to the new KRA ids
+            temp_id: String(kra.id),
             name: kra.name,
             description: kra.description || ''
         }));
@@ -612,6 +722,8 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
 
         // Prepare custom KRAs data
         const customKrasData = customKras.map(kra => ({
+            // Sent so the backend can map objectives to the new KRA ids
+            temp_id: String(kra.id),
             name: kra.name,
             description: kra.description || ''
         }));
@@ -1092,7 +1204,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                     ))}
                                 </select>
                                 <p className="text-xs text-gray-500">
-                                    Each tier gets its own set of KRAs and objectives.
+                                    Active objectives for the tier are selected automatically.
                                 </p>
                             </div>
                         </div>
@@ -1136,7 +1248,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                             
                             <p className="text-sm text-gray-600">
                                 {formData.position_tier
-                                    ? `Selected: ${formData.selected_objective_ids.length} of ${tierObjectiveIds.length} objective(s) designated for ${formData.position_tier}`
+                                    ? `Selected: ${formData.selected_objective_ids.length} of ${tierObjectiveIds.length} objective(s) designated for ${formData.position_tier}` + (inactiveTierCount > 0 ? ` (${inactiveTierCount} inactive, shown unselected)` : '')
                                     : 'Select a position tier above to load the objectives designated for it.'}
                             </p>
 
@@ -1185,7 +1297,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                                     <h4 className="font-semibold text-sm text-green-700 bg-green-50 px-3 py-2 rounded">
                                                         KRA {kraIndex + 1}: {kra.name}
                                                     </h4>
-                                                    {kra.is_custom && (
+                                                    {(
                                                         <div className="flex gap-1">
                                                             <Button 
                                                                 type="button" 
@@ -1294,8 +1406,13 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                                                 </span>
                                                             )}
                                                             {objective.is_custom && (
+                                                                <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Custom</span>
+                                                            )}
+                                                            {objective.is_active === false && (
+                                                                <span className="ml-2 text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded font-semibold">Inactive</span>
+                                                            )}
+                                                            {(
                                                                 <>
-                                                                    <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Custom</span>
                                                                     <Button 
                                                                         type="button" 
                                                                         size="sm" 
@@ -1510,7 +1627,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                     ))}
                                 </select>
                                 <p className="text-xs text-amber-600">
-                                    Changing the tier clears the current objective selection.
+                                    Changing the tier re-selects all active objectives for that tier.
                                 </p>
                             </div>
                         </div>
@@ -1554,7 +1671,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                             
                             <p className="text-sm text-gray-600">
                                 {formData.position_tier
-                                    ? `Selected: ${formData.selected_objective_ids.length} of ${tierObjectiveIds.length} objective(s) designated for ${formData.position_tier}`
+                                    ? `Selected: ${formData.selected_objective_ids.length} of ${tierObjectiveIds.length} objective(s) designated for ${formData.position_tier}` + (inactiveTierCount > 0 ? ` (${inactiveTierCount} inactive, shown unselected)` : '')
                                     : 'Select a position tier above to load the objectives designated for it.'}
                             </p>
 
@@ -1603,7 +1720,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                                     <h4 className="font-semibold text-sm text-green-700 bg-green-50 px-3 py-2 rounded">
                                                         KRA {kraIndex + 1}: {kra.name}
                                                     </h4>
-                                                    {kra.is_custom && (
+                                                    {(
                                                         <div className="flex gap-1">
                                                             <Button 
                                                                 type="button" 
@@ -1712,8 +1829,13 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                                                 </span>
                                                             )}
                                                             {objective.is_custom && (
+                                                                <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Custom</span>
+                                                            )}
+                                                            {objective.is_active === false && (
+                                                                <span className="ml-2 text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded font-semibold">Inactive</span>
+                                                            )}
+                                                            {(
                                                                 <>
-                                                                    <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Custom</span>
                                                                     <Button 
                                                                         type="button" 
                                                                         size="sm" 

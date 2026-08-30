@@ -28,12 +28,16 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::put('/ipcrf/rating/{rating}', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'updateRating'])->name('ipcrf.rating.update');
     Route::post('/ipcrf/kra', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'storeKra'])->name('ipcrf.kra.store');
     Route::put('/ipcrf/kra/{kra}', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'updateKra'])->name('ipcrf.kra.update');
-    Route::post('/ipcrf/objective', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'storeObjective'])->name('ipcrf.objective.store');
-    Route::put('/ipcrf/objective/{objective}', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'updateObjective'])->name('ipcrf.objective.update');
-    Route::delete('/ipcrf/objective/{objective}', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'deleteObjective'])->name('ipcrf.objective.delete');
+    Route::delete('/ipcrf/kra/{kra}', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'deleteKra'])->name('ipcrf.kra.delete');
+    // Legacy single-objective endpoints (kept for backward compat).
+    // Names are suffixed with ".legacy" so they no longer clash with the
+    // management endpoints below.
+    Route::post('/ipcrf/objective', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'storeObjective'])->name('ipcrf.objective.store.legacy');
+    Route::put('/ipcrf/objective/{objective}', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'updateObjective'])->name('ipcrf.objective.update.legacy');
+    Route::delete('/ipcrf/objective/{objective}', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'deleteObjective'])->name('ipcrf.objective.delete.legacy');
     Route::post('/ipcrf/objectives/add-all', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'addAllObjectives'])->name('ipcrf.objectives.add-all');
     
-    // Objectives Management (within IPCRF context)
+    // Objectives Management (canonical endpoints used by the UI)
     Route::get('/ipcrf/objectives', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'objectivesIndex'])->name('ipcrf.objective.index');
     Route::post('/ipcrf/objectives', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'storeObjectiveManagement'])->name('ipcrf.objective.store');
     Route::put('/ipcrf/objectives/{objective}', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'updateObjectiveManagement'])->name('ipcrf.objective.update');

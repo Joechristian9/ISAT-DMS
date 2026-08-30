@@ -398,9 +398,6 @@ export default function TeacherIpcrf({
                                         <th className="px-4 py-3 text-center text-sm font-bold text-white uppercase border-2 border-gray-400 w-12">
                                             
                                         </th>
-                                        <th className="px-4 py-3 text-center text-sm font-bold text-white uppercase border-2 border-gray-400 w-16">
-                                            
-                                        </th>
                                         <th className="px-4 py-3 text-center text-sm font-bold text-white uppercase border-2 border-gray-400">
                                             Objective
                                         </th>
@@ -442,9 +439,7 @@ export default function TeacherIpcrf({
                                                 <td className={`px-4 py-4 text-lg text-gray-900 text-center border-l-2 border-r-2 border-gray-400 font-bold ${isLastInKra ? 'border-b-2' : ''} ${objIndex === 0 ? 'border-t-2' : ''}`}>
                                                     {globalIndex}
                                                 </td>
-                                                <td className={`px-4 py-4 text-base text-center border-l-2 border-r-2 border-gray-400 font-bold text-green-700 ${isLastInKra ? 'border-b-2' : ''} ${objIndex === 0 ? 'border-t-2' : ''}`}>
-                                                    {objective.code}
-                                                </td>
+
                                                 <td className={`px-5 py-4 text-lg leading-relaxed text-gray-800 border-l-2 border-r-2 border-gray-400 ${isLastInKra ? 'border-b-2' : ''} ${objIndex === 0 ? 'border-t-2' : ''}`}>
                                                     {objective.description}
                                                 </td>
@@ -524,7 +519,7 @@ export default function TeacherIpcrf({
                                         );
                                     })}
                                     <tr className="bg-green-100">
-                                        <td colSpan="5" className="px-4 py-4 text-right text-base font-bold text-gray-900 border-2 border-gray-400">
+                                        <td colSpan="4" className="px-4 py-4 text-right text-base font-bold text-gray-900 border-2 border-gray-400">
                                             TOTAL
                                         </td>
                                         <td className="px-4 py-4 text-center text-base font-bold text-gray-900 border-2 border-gray-400">

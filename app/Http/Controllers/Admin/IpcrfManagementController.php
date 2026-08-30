@@ -344,15 +344,47 @@ class IpcrfManagementController extends Controller
 
     public function updateKra(Request $request, Kra $kra)
     {
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'order' => 'required|integer',
+            'order' => 'nullable|integer|min:1',
+            'position_tiers' => 'nullable|array',
+            'position_tiers.*' => 'string|in:T1 - T3,T4 - T7,MT1 - MT2,MT3 - MT5',
+        ], [
+            'name.required' => 'KRA name is required.',
         ]);
 
-        $kra->update($request->all());
+        $kra->update([
+            'name' => $validated['name'],
+            'description' => $validated['description'] ?? $kra->description,
+            'order' => $validated['order'] ?? $kra->order,
+            'position_tiers' => $request->has('position_tiers')
+                ? $validated['position_tiers']
+                : $kra->position_tiers,
+        ]);
 
         return back()->with('success', 'KRA updated successfully!');
+    }
+
+    /**
+     * Delete a KRA. Blocked while objectives still hang off it, so a single
+     * click can never take a whole branch of the IPCRF structure with it.
+     */
+    public function deleteKra(Kra $kra)
+    {
+        $objectiveCount = $kra->objectives()->count();
+
+        if ($objectiveCount > 0) {
+            return back()->with(
+                'error',
+                "Cannot delete \"{$kra->name}\": it still has {$objectiveCount} objective(s). Remove or move them first."
+            );
+        }
+
+        $name = $kra->name;
+        $kra->delete();
+
+        return back()->with('success', "KRA \"{$name}\" deleted successfully!");
     }
 
     // Objective Management
@@ -501,6 +533,7 @@ class IpcrfManagementController extends Controller
     {
         $request->validate([
             'kra_id' => 'required|exists:kras,id',
+            'code' => 'nullable|string|max:50',
             'description' => 'required|string|max:1000',
             'weight' => 'required|numeric|min:0|max:100',
             'order' => 'required|integer|min:1',
@@ -509,10 +542,10 @@ class IpcrfManagementController extends Controller
             'position_tiers.*' => 'string|in:T1 - T3,T4 - T7,MT1 - MT2,MT3 - MT5',
         ]);
 
-        // Auto-generate code based on order
-        $code = (string) $request->order;
+        // Use the supplied code when given, otherwise derive it from the order
+        $code = $request->filled('code') ? $request->input('code') : (string) $request->order;
 
-        Objective::create([
+        $objective = Objective::create([
             'kra_id' => $request->kra_id,
             'code' => $code,
             'description' => $request->description,
@@ -523,7 +556,12 @@ class IpcrfManagementController extends Controller
             'position_tiers' => $request->position_tiers,
         ]);
 
-        return back()->with('success', 'Objective created successfully!');
+        $synced = $this->syncObjectiveWithConfigurations($objective);
+
+        return back()->with(
+            'success',
+            'Objective created successfully!' . $this->syncMessage($objective, $synced)
+        );
     }
 
     /**
@@ -533,6 +571,7 @@ class IpcrfManagementController extends Controller
     {
         $request->validate([
             'kra_id' => 'required|exists:kras,id',
+            'code' => 'nullable|string|max:50',
             'description' => 'required|string|max:1000',
             'weight' => 'required|numeric|min:0|max:100',
             'order' => 'required|integer|min:1',
@@ -541,8 +580,11 @@ class IpcrfManagementController extends Controller
             'position_tiers.*' => 'string|in:T1 - T3,T4 - T7,MT1 - MT2,MT3 - MT5',
         ]);
 
-        // Auto-generate code based on order
-        $code = (string) $request->order;
+        // Keep a meaningful code such as a PPST reference ("1.1.2"). Only fall
+        // back to the order number when the objective has no code at all.
+        $code = $request->filled('code')
+            ? $request->input('code')
+            : ($objective->code ?: (string) $request->order);
 
         $objective->update([
             'kra_id' => $request->kra_id,
@@ -554,7 +596,12 @@ class IpcrfManagementController extends Controller
             'position_tiers' => $request->position_tiers,
         ]);
 
-        return back()->with('success', 'Objective updated successfully!');
+        $synced = $this->syncObjectiveWithConfigurations($objective->fresh());
+
+        return back()->with(
+            'success',
+            'Objective updated successfully!' . $this->syncMessage($objective, $synced)
+        );
     }
 
     /**
@@ -570,11 +617,94 @@ class IpcrfManagementController extends Controller
                 return back()->with('error', "Cannot delete objective. It has {$submissionsCount} associated teacher submissions.");
             }
 
+            // Drop it from any configuration that had it selected
+            $this->removeObjectiveFromConfigurations($objective->id);
+
             $objective->delete();
             
             return back()->with('success', 'Objective deleted successfully!');
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to delete objective: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Keep configuration selections in step with an objective's Active status.
+     *
+     * An objective marked Active is added to every unlocked configuration whose
+     * position tier it applies to; marking it Inactive removes it again. Locked
+     * configurations are never touched.
+     *
+     * @return int Number of configurations changed.
+     */
+    protected function syncObjectiveWithConfigurations(Objective $objective): int
+    {
+        $tiers = $objective->position_tiers ?: []; // empty means "all tiers"
+        $changed = 0;
+
+        $configurations = IpcrfConfiguration::where('is_locked', false)->get();
+
+        foreach ($configurations as $configuration) {
+            // Skip configurations for a tier this objective does not apply to
+            if (!empty($tiers) && $configuration->position_tier
+                && !in_array($configuration->position_tier, $tiers, true)) {
+                continue;
+            }
+
+            $selected = array_map('intval', $configuration->selected_objective_ids ?? []);
+            $alreadySelected = in_array($objective->id, $selected, true);
+
+            if ($objective->is_active && !$alreadySelected) {
+                $selected[] = $objective->id;
+            } elseif (!$objective->is_active && $alreadySelected) {
+                $selected = array_filter($selected, fn ($id) => $id !== $objective->id);
+            } else {
+                continue; // Already in the right state
+            }
+
+            $configuration->update([
+                'selected_objective_ids' => array_values(array_unique($selected)),
+            ]);
+
+            $changed++;
+        }
+
+        return $changed;
+    }
+
+    /**
+     * Remove an objective id from every configuration that selected it.
+     */
+    protected function removeObjectiveFromConfigurations(int $objectiveId): void
+    {
+        foreach (IpcrfConfiguration::all() as $configuration) {
+            $selected = array_map('intval', $configuration->selected_objective_ids ?? []);
+
+            if (!in_array($objectiveId, $selected, true)) {
+                continue;
+            }
+
+            $configuration->update([
+                'selected_objective_ids' => array_values(
+                    array_filter($selected, fn ($id) => $id !== $objectiveId)
+                ),
+            ]);
+        }
+    }
+
+    /**
+     * Human readable note about what the sync did.
+     */
+    protected function syncMessage(Objective $objective, int $changed): string
+    {
+        if ($changed === 0) {
+            return '';
+        }
+
+        $word = $changed === 1 ? 'configuration' : 'configurations';
+
+        return $objective->is_active
+            ? " Selected in {$changed} {$word}."
+            : " Removed from {$changed} {$word}.";
     }
 }
