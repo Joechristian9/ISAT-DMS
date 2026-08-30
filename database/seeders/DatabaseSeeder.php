@@ -25,9 +25,9 @@ class DatabaseSeeder extends Seeder
         $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $teacherRole = Role::firstOrCreate(['name' => 'teacher']);
 
-        // Get positions for teachers
-        $beginnerPosition = Position::where('name', 'Beginner')->first();
-        $proficientPosition = Position::where('name', 'Proficient')->first();
+        // Get positions for teachers (PositionSeeder defines the current tier names)
+        $beginnerPosition = Position::where('name', 'Beginning Towards Proficient')->first();
+        $proficientPosition = Position::where('name', 'Highly Proficient')->first();
 
         // Create super admin
         $superAdmin = User::firstOrCreate(
@@ -39,6 +39,21 @@ class DatabaseSeeder extends Seeder
         );
         if (!$superAdmin->hasRole('super-admin')) {
             $superAdmin->assignRole('super-admin');
+        }
+
+        // Principal account (super-admin) - rates Master Teacher I-II.
+        // The Principal IV of ISAT Ilagan Campus.
+        $principal = User::updateOrCreate(
+            ['email' => 'principal@isat.edu.ph'],
+            [
+                'name' => 'Mary Ann Lopez Catindig',
+                'password' => bcrypt('password'),
+                'career_stage' => 'Distinguished',
+                'is_active' => true,
+            ]
+        );
+        if (!$principal->hasRole('super-admin')) {
+            $principal->assignRole('super-admin');
         }
 
         // Create 3 admins
@@ -88,6 +103,13 @@ class DatabaseSeeder extends Seeder
         // Seed IPCRF data - KRAs only.
         // Objectives are managed directly in the database / admin UI, not seeded.
         $this->call(KraSeeder::class);
-        $this->call(IpcrfRatingSeeder::class);
+
+        // IpcrfRatingSeeder is intentionally NOT called - ratings must start empty.
+        // Teachers show "Not rated yet" / status "draft" / rating 0 until a rater
+        // scores them. Run it manually only when demo data is needed:
+        //   php artisan db:seed --class=IpcrfRatingSeeder
+
+        // ISAT Ilagan Campus teaching roster (Master Teacher I-II + Teacher I-III).
+        $this->call(SchoolRosterSeeder::class);
     }
 }

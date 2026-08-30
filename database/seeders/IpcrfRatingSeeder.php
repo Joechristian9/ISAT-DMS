@@ -29,6 +29,11 @@ class IpcrfRatingSeeder extends Seeder
             $totalScore = 0;
 
             foreach ($kras as $kra) {
+                // Objectives are not seeded on a fresh database; skip empty KRAs
+                if ($kra->objectives->isEmpty()) {
+                    continue;
+                }
+
                 $objectives = [];
                 $kraScore = 0;
                 $kraRatingSum = 0;

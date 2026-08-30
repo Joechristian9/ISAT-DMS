@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\TeacherSubmission;
+use App\Models\IpcrfConfiguration;
 use App\Models\IpcrfRating;
 use App\Models\AuditLog;
 use App\Models\PendingAction;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Inertia\Inertia;
@@ -15,7 +17,7 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
         // Basic Stats
         $stats = [
@@ -25,13 +27,36 @@ class DashboardController extends Controller
             'total_super_admins' => User::role('super-admin')->count(),
         ];
 
-        // IPCRF Stats
+        // ---- IPCRF submissions: scoped to a school year (defaults to the active one) ----
+        $activeYear = IpcrfConfiguration::where('is_active', true)
+            ->orderByDesc('school_year')
+            ->value('school_year');
+
+        // Every school year that has either a configuration or at least one submission
+        $availableYears = TeacherSubmission::query()->distinct()->pluck('school_year')
+            ->merge(IpcrfConfiguration::query()->distinct()->pluck('school_year'))
+            ->filter()
+            ->unique()
+            ->sortDesc()
+            ->values();
+
+        $selectedYear = $request->input('ipcrf_year')
+            ?: ($activeYear ?: $availableYears->first());
+
+        $yearScope = fn ($query) => $query->when($selectedYear, fn ($q) => $q->where('school_year', $selectedYear));
+        $ratingYearScope = fn ($query) => $query->when($selectedYear, fn ($q) => $q->where('rating_period', $selectedYear));
+
+        // IPCRF Stats (for the selected school year)
         $ipcrfStats = [
-            'total_submissions' => TeacherSubmission::count(),
-            'pending_submissions' => TeacherSubmission::where('status', 'pending')->count(),
-            'reviewed_submissions' => TeacherSubmission::where('status', 'reviewed')->count(),
-            'total_ratings' => IpcrfRating::count(),
-            'average_rating' => IpcrfRating::avg('numerical_rating') ?? 0,
+            // Number of teachers who have submitted at least one MOV for the year
+            'total_submissions' => (int) $yearScope(TeacherSubmission::query())
+                ->distinct('teacher_id')->count('teacher_id'),
+            // Raw MOV records, used for review-progress ratios
+            'submission_records' => $yearScope(TeacherSubmission::query())->count(),
+            'pending_submissions' => $yearScope(TeacherSubmission::query())->where('status', 'pending')->count(),
+            'reviewed_submissions' => $yearScope(TeacherSubmission::query())->where('status', 'reviewed')->count(),
+            'total_ratings' => $ratingYearScope(IpcrfRating::query())->count(),
+            'average_rating' => $ratingYearScope(IpcrfRating::query())->avg('numerical_rating') ?? 0,
         ];
 
         // Pending Actions
@@ -146,6 +171,9 @@ class DashboardController extends Controller
         return Inertia::render('Admin/Dashboard', [
             'stats' => $stats,
             'ipcrfStats' => $ipcrfStats,
+            'ipcrfYear' => $selectedYear,
+            'ipcrfActiveYear' => $activeYear,
+            'availableIpcrfYears' => $availableYears,
             'pendingActions' => $pendingActions,
             'recentActivities' => $recentActivities,
             'submissionsTrend' => $submissionsTrend,

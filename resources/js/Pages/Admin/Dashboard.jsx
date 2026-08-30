@@ -1,5 +1,5 @@
 import { AppSidebar } from "@/components/app-sidebar"
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 import {
   Breadcrumb,
@@ -15,6 +15,13 @@ import {
 } from "@/components/ui/sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { 
     Users, 
     GraduationCap, 
@@ -52,10 +59,13 @@ import {
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-export default function AdminDashboard({ 
-    stats, 
-    ipcrfStats, 
-    pendingActions, 
+export default function AdminDashboard({
+    stats,
+    ipcrfStats,
+    ipcrfYear,
+    ipcrfActiveYear,
+    availableIpcrfYears = [],
+    pendingActions,
     recentActivities,
     submissionsTrend,
     ratingsDistribution,
@@ -65,6 +75,15 @@ export default function AdminDashboard({
     systemAlerts
 }) {
     const [dateFilter, setDateFilter] = useState('7days');
+
+    // Switch the IPCRF submission stats to another school year
+    const handleIpcrfYearChange = (year) => {
+        router.get(route('admin.dashboard'), { ipcrf_year: year }, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    };
 
     // Export enhanced dashboard report to PDF
     const exportDashboardReport = () => {
@@ -193,9 +212,10 @@ export default function AdminDashboard({
                 ['Teachers', String(stats?.total_teachers || 0), `${stats?.total_users ? Math.round((stats.total_teachers / stats.total_users) * 100) : 0}%`],
                 ['Administrators', String(stats?.total_admins || 0), `${stats?.total_users ? Math.round((stats.total_admins / stats.total_users) * 100) : 0}%`],
                 ['', '', ''],
-                ['IPCRF Submissions', String(ipcrfStats?.total_submissions || 0), '100%'],
-                ['Reviewed', String(ipcrfStats?.reviewed_submissions || 0), `${ipcrfStats?.total_submissions ? Math.round((ipcrfStats.reviewed_submissions / ipcrfStats.total_submissions) * 100) : 0}%`],
-                ['Pending Review', String((ipcrfStats?.total_submissions || 0) - (ipcrfStats?.reviewed_submissions || 0)), `${ipcrfStats?.total_submissions ? Math.round(((ipcrfStats.total_submissions - ipcrfStats.reviewed_submissions) / ipcrfStats.total_submissions) * 100) : 0}%`],
+                [`Teachers Submitted (SY ${ipcrfYear || '—'})`, String(ipcrfStats?.total_submissions || 0), `${stats?.total_teachers ? Math.round(((ipcrfStats?.total_submissions || 0) / stats.total_teachers) * 100) : 0}%`],
+                ['MOV Records', String(ipcrfStats?.submission_records || 0), '100%'],
+                ['Reviewed', String(ipcrfStats?.reviewed_submissions || 0), `${ipcrfStats?.submission_records ? Math.round((ipcrfStats.reviewed_submissions / ipcrfStats.submission_records) * 100) : 0}%`],
+                ['Pending Review', String((ipcrfStats?.submission_records || 0) - (ipcrfStats?.reviewed_submissions || 0)), `${ipcrfStats?.submission_records ? Math.round(((ipcrfStats.submission_records - ipcrfStats.reviewed_submissions) / ipcrfStats.submission_records) * 100) : 0}%`],
                 ['Average Rating', ipcrfStats?.average_rating ? Number(ipcrfStats.average_rating).toFixed(2) : '0.00', 'Stars'],
                 ['', '', ''],
                 ['Pending Actions', String(pendingActions?.total_pending || 0), pendingActions?.total_pending > 0 ? 'Requires Attention' : 'All Clear']
@@ -494,7 +514,7 @@ export default function AdminDashboard({
             icon: FileText,
             color: "bg-purple-500",
             trend: "+15%",
-            description: "Total submissions"
+            description: `Teachers submitted of ${stats?.total_teachers || 0} · SY ${ipcrfYear || '—'}`
         },
         {
             title: "Pending Reviews",
@@ -578,6 +598,22 @@ export default function AdminDashboard({
                                 </Breadcrumb>
                             </div>
                             <div className="flex items-center gap-2">
+                                <Select value={ipcrfYear || ''} onValueChange={handleIpcrfYearChange}>
+                                    <SelectTrigger className="h-8 w-[190px]">
+                                        <Calendar className="h-4 w-4 mr-2 shrink-0" />
+                                        <SelectValue placeholder="Select school year" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {availableIpcrfYears.length === 0 && ipcrfYear && (
+                                            <SelectItem value={ipcrfYear}>{ipcrfYear}</SelectItem>
+                                        )}
+                                        {availableIpcrfYears.map((year) => (
+                                            <SelectItem key={year} value={year}>
+                                                {year}{year === ipcrfActiveYear ? ' (Active)' : ''}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                                 <Button variant="outline" size="sm" onClick={exportDashboardReport}>
                                     <Download className="h-4 w-4 mr-2" />
                                     Export Report
@@ -877,18 +913,18 @@ export default function AdminDashboard({
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-sm font-medium text-gray-700">Completion Rate</span>
                                                     <span className="text-sm font-bold text-green-600">
-                                                        {ipcrfStats?.total_submissions > 0 
-                                                            ? Math.round((ipcrfStats.reviewed_submissions / ipcrfStats.total_submissions) * 100)
+                                                        {ipcrfStats?.submission_records > 0
+                                                            ? Math.round((ipcrfStats.reviewed_submissions / ipcrfStats.submission_records) * 100)
                                                             : 0}%
                                                     </span>
                                                 </div>
                                                 <div className="w-full bg-gray-200 rounded-full h-2">
-                                                    <div 
+                                                    <div
                                                         className="bg-green-600 h-2 rounded-full transition-all duration-500"
-                                                        style={{ 
-                                                            width: `${ipcrfStats?.total_submissions > 0 
-                                                                ? (ipcrfStats.reviewed_submissions / ipcrfStats.total_submissions) * 100
-                                                                : 0}%` 
+                                                        style={{
+                                                            width: `${ipcrfStats?.submission_records > 0
+                                                                ? (ipcrfStats.reviewed_submissions / ipcrfStats.submission_records) * 100
+                                                                : 0}%`
                                                         }}
                                                     />
                                                 </div>

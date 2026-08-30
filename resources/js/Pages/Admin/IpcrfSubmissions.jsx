@@ -1,5 +1,5 @@
 import { AppSidebar } from "@/components/app-sidebar";
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import {
@@ -41,16 +41,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Toaster } from "@/components/ui/sonner";
-import { Search, Plus, Eye, FileDown, FileCheck, FileX } from 'lucide-react';
+import { Search, Plus, Eye, FileDown, FileCheck, FileX, ClipboardList } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { generateIpcrfOfficialForm } from '@/lib/ipcrfOfficialForm';
 
-export default function IpcrfSubmissions({ teachers, availableYears, kras, totalObjectives, currentSchoolYear, filters, flash }) {
+export default function IpcrfSubmissions({ teachers, availableYears, kras, totalObjectives, currentSchoolYear, ratingScope, filters, flash }) {
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
     const [selectedStatus, setSelectedStatus] = useState(filters.status || '');
     const [selectedYear, setSelectedYear] = useState(filters.year || '');
     const [isViewDetailsModalOpen, setIsViewDetailsModalOpen] = useState(false);
     const [selectedRating, setSelectedRating] = useState(null);
+    const [selectedTeacher, setSelectedTeacher] = useState(null);
+    const [recordsPage, setRecordsPage] = useState(0);
+    const [expandedYear, setExpandedYear] = useState(null);
+    const RECORDS_PER_PAGE = 4;
 
     // Show flash messages
     useEffect(() => {
@@ -103,10 +108,81 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, total
         return 'text-red-600 bg-red-50';
     };
 
-    // View rating details
-    const viewRatingDetails = (rating) => {
-        setSelectedRating(rating);
+    // Open the Rating Records view for a teacher - all rating periods + the
+    // MOVs the teacher submitted in each of those years.
+    const openRecords = (teacher) => {
+        setSelectedTeacher(teacher);
+        setSelectedRating(teacher?.ipcrf_ratings?.[0] ?? null);
+        setRecordsPage(0);
+        setExpandedYear(teacher?.ipcrf_ratings?.[0]?.rating_period ?? null);
         setIsViewDetailsModalOpen(true);
+    };
+
+    // Every school year this teacher has a rating and/or MOV submissions for,
+    // newest first, each with its rating record and that year's MOVs.
+    const buildRecords = (teacher) => {
+        if (!teacher) return [];
+        const ratings = teacher.ipcrf_ratings ?? [];
+        const movs = teacher.teacher_submissions ?? [];
+        const years = [...new Set([
+            ...ratings.map((r) => r.rating_period).filter(Boolean),
+            ...movs.map((m) => m.school_year).filter(Boolean),
+        ])].sort((a, b) => String(b).localeCompare(String(a)));
+
+        return years.map((year) => ({
+            year,
+            rating: ratings.find((r) => r.rating_period === year) ?? null,
+            movs: movs.filter((m) => m.school_year === year),
+        }));
+    };
+
+    const authUser = usePage().props.auth?.user;
+
+    // Generate the official IPCRF Part 1 form from the selected rating
+    const generateRatingSummaryOfficial = async () => {
+        if (!selectedRating) return;
+
+        try {
+            const kraGroups = (selectedRating.kra_details || [])
+                .map((kra) => ({
+                    domain: kra.kra_name || 'Key Result Area',
+                    objectives: (kra.objectives || []).map((obj) => ({
+                        description: obj.objective_description || obj.objective_code || 'Objective',
+                        weight: null,
+                        rating: Number(obj.rating) || 0,
+                    })),
+                }))
+                .filter((group) => group.objectives.length > 0);
+
+            if (kraGroups.length === 0) {
+                toast.error('This rating has no per-objective breakdown to put on the form.');
+                return;
+            }
+
+            const teacher = teachers.data.find((t) => t.ipcrf_ratings?.some((r) => r.id === selectedRating.id));
+
+            await generateIpcrfOfficialForm({
+                employee: {
+                    name: teacher?.name || '',
+                    position: teacher?.current_position?.name || '',
+                    division: 'ISABELA SCHOOL OF ARTS AND TRADES - Ilagan Campus',
+                },
+                rater: {
+                    name: authUser?.name || '',
+                    position: authUser?.roles?.[0]?.name || '',
+                },
+                ratingPeriod: selectedRating.rating_period || selectedRating.school_year || '',
+                dateOfReview: selectedRating.created_at ? new Date(selectedRating.created_at) : new Date(),
+                kraGroups,
+                numericalRating: selectedRating.numerical_rating != null ? Number(selectedRating.numerical_rating) : null,
+                fileName: `IPCRF_Part1_${(teacher?.name || 'teacher').replace(/\s+/g, '_')}_${selectedRating.rating_period || 'SY'}.pdf`,
+            });
+
+            toast.success('IPCRF Part 1 form generated!');
+        } catch (error) {
+            console.error('Error generating IPCRF form:', error);
+            toast.error('Failed to generate form: ' + error.message);
+        }
     };
 
     // Export rating to PDF in official IPCRF format
@@ -432,8 +508,17 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, total
                         {/* Content */}
                         <div className="relative z-10">
                             <div className="bg-white rounded-lg shadow p-6">
-                                <h2 className="text-2xl font-semibold mb-6">IPCRF Submissions</h2>
-                                
+                                <h2 className="text-2xl font-semibold mb-2">IPCRF Submissions</h2>
+
+                                {ratingScope && (
+                                    <div className="mb-6 flex items-center gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+                                        <span className="font-semibold">{ratingScope.raterRole}</span>
+                                        <span>&mdash; you can rate the</span>
+                                        <span className="font-semibold">{ratingScope.label}</span>
+                                        <span>tier only. Other tiers are hidden from this list.</span>
+                                    </div>
+                                )}
+
                                 {/* Search and Filter Section */}
                                 <div className="flex flex-col md:flex-row gap-4 items-end mb-6">
                                     <div className="flex-1">
@@ -574,13 +659,9 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, total
                                                                 </div>
                                                             </TableCell>
                                                             <TableCell className="text-center">
-                                                                {latestRating ? (
-                                                                    <span className="font-semibold text-lg">
-                                                                        {latestRating.numerical_rating ? Number(latestRating.numerical_rating).toFixed(2) : 'N/A'}
-                                                                    </span>
-                                                                ) : (
-                                                                    <span className="text-gray-400 text-sm">No rating</span>
-                                                                )}
+                                                                <span className={`font-semibold text-lg ${latestRating?.numerical_rating ? '' : 'text-gray-400'}`}>
+                                                                    {Number(latestRating?.numerical_rating || 0).toFixed(2)}
+                                                                </span>
                                                             </TableCell>
                                                             <TableCell className="text-center">
                                                                 {latestRating?.numerical_rating ? (
@@ -588,17 +669,15 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, total
                                                                         {getRatingEquivalency(latestRating.numerical_rating)}
                                                                     </span>
                                                                 ) : (
-                                                                    <span className="text-gray-400 text-sm">-</span>
+                                                                    <span className="inline-flex px-3 py-1 text-xs font-medium rounded bg-gray-100 text-gray-500">
+                                                                        Not rated yet
+                                                                    </span>
                                                                 )}
                                                             </TableCell>
                                                             <TableCell className="text-center">
-                                                                {latestRating ? (
-                                                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded ${getStatusBadge(latestRating.status)}`}>
-                                                                        {latestRating.status}
-                                                                    </span>
-                                                                ) : (
-                                                                    <span className="text-gray-400 text-sm">-</span>
-                                                                )}
+                                                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded ${getStatusBadge(latestRating?.status || 'draft')}`}>
+                                                                    {latestRating?.status || 'draft'}
+                                                                </span>
                                                             </TableCell>
                                                             <TableCell className="text-right">
                                                                 <div className="flex gap-2 justify-end">
@@ -610,16 +689,14 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, total
                                                                         <Plus className="h-3 w-3 mr-1" />
                                                                         Rate
                                                                     </Button>
-                                                                    {latestRating && (
-                                                                        <Button
-                                                                            size="sm"
-                                                                            variant="outline"
-                                                                            onClick={() => viewRatingDetails(latestRating)}
-                                                                        >
-                                                                            <Eye className="h-3 w-3 mr-1" />
-                                                                            View
-                                                                        </Button>
-                                                                    )}
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        onClick={() => openRecords(teacher)}
+                                                                    >
+                                                                        <Eye className="h-3 w-3 mr-1" />
+                                                                        Records
+                                                                    </Button>
                                                                 </div>
                                                             </TableCell>
                                                         </TableRow>
@@ -655,13 +732,158 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, total
             <Dialog open={isViewDetailsModalOpen} onOpenChange={setIsViewDetailsModalOpen}>
                 <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>IPCRF Rating Details</DialogTitle>
+                        <DialogTitle>Rating Records{selectedTeacher ? ` — ${selectedTeacher.name}` : ''}</DialogTitle>
                         <DialogDescription>
-                            Rating Period: {selectedRating?.rating_period}
+                            Every school year with a rating and/or submitted MOVs
                         </DialogDescription>
                     </DialogHeader>
+
+                    {(() => {
+                        const records = buildRecords(selectedTeacher);
+                        if (records.length === 0) {
+                            return (
+                                <div className="py-8 text-center text-sm text-gray-500">
+                                    No rating records or MOV submissions yet.
+                                </div>
+                            );
+                        }
+                        const totalPages = Math.ceil(records.length / RECORDS_PER_PAGE);
+                        const pageRecords = records.slice(
+                            recordsPage * RECORDS_PER_PAGE,
+                            (recordsPage + 1) * RECORDS_PER_PAGE
+                        );
+                        return (
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-semibold text-gray-700">
+                                        {records.length} record{records.length !== 1 ? 's' : ''}
+                                    </span>
+                                    {totalPages > 1 && (
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-7 px-3 text-xs"
+                                                disabled={recordsPage === 0}
+                                                onClick={() => setRecordsPage((p) => Math.max(0, p - 1))}
+                                            >
+                                                Previous
+                                            </Button>
+                                            <span className="text-xs text-gray-600">
+                                                Page {recordsPage + 1} of {totalPages}
+                                            </span>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-7 px-3 text-xs"
+                                                disabled={recordsPage >= totalPages - 1}
+                                                onClick={() => setRecordsPage((p) => Math.min(totalPages - 1, p + 1))}
+                                            >
+                                                Next
+                                            </Button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {pageRecords.map((rec) => {
+                                    const isOpen = expandedYear === rec.year;
+                                    const isSelected = selectedRating && rec.rating && selectedRating.id === rec.rating.id;
+                                    return (
+                                        <div
+                                            key={rec.year}
+                                            className={`border rounded-lg ${isSelected ? 'border-green-400 ring-1 ring-green-200' : 'border-gray-200'}`}
+                                        >
+                                            <div className="flex flex-wrap items-center justify-between gap-2 p-3">
+                                                <div className="flex items-center gap-3">
+                                                    <span className="font-semibold text-gray-900">SY {rec.year}</span>
+                                                    {rec.rating?.numerical_rating ? (
+                                                        <span className={`inline-flex px-2 py-0.5 text-xs font-bold rounded ${getRatingColor(rec.rating.numerical_rating)}`}>
+                                                            {getRatingEquivalency(rec.rating.numerical_rating)} ({Number(rec.rating.numerical_rating).toFixed(2)})
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-500">
+                                                            Not rated yet
+                                                        </span>
+                                                    )}
+                                                    <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded ${getStatusBadge(rec.rating?.status || 'draft')}`}>
+                                                        {rec.rating?.status || 'draft'}
+                                                    </span>
+                                                    <span className="text-xs text-gray-500">
+                                                        {rec.movs.length} MOV{rec.movs.length !== 1 ? 's' : ''}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    {rec.rating && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant={isSelected ? 'default' : 'outline'}
+                                                            className={`h-7 px-3 text-xs ${isSelected ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                                                            onClick={() => setSelectedRating(rec.rating)}
+                                                        >
+                                                            {isSelected ? 'Selected' : 'View rating'}
+                                                        </Button>
+                                                    )}
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="h-7 px-3 text-xs"
+                                                        onClick={() => setExpandedYear(isOpen ? null : rec.year)}
+                                                    >
+                                                        {isOpen ? 'Hide MOVs' : 'Show MOVs'}
+                                                    </Button>
+                                                </div>
+                                            </div>
+
+                                            {isOpen && (
+                                                <div className="border-t bg-gray-50 p-3 space-y-2">
+                                                    {rec.movs.length === 0 ? (
+                                                        <p className="text-xs text-gray-500">No MOVs submitted for SY {rec.year}.</p>
+                                                    ) : (
+                                                        rec.movs.map((mov) => (
+                                                            <div key={mov.id} className="flex items-center justify-between gap-3 rounded bg-white p-2 border border-gray-100">
+                                                                <div className="min-w-0">
+                                                                    <span className="text-sm font-medium text-blue-600">
+                                                                        {mov.objective?.code || `Objective #${mov.objective_id}`}
+                                                                    </span>
+                                                                    <p className="text-xs text-gray-500 truncate">
+                                                                        {mov.objective?.description || mov.notes || '—'}
+                                                                    </p>
+                                                                </div>
+                                                                <div className="flex items-center gap-3 shrink-0">
+                                                                    <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded ${getStatusBadge(mov.status || 'draft')}`}>
+                                                                        {mov.status || 'draft'}
+                                                                    </span>
+                                                                    <span className="text-xs text-gray-600">
+                                                                        {mov.rating ? `${mov.rating}/5` : '—'}
+                                                                    </span>
+                                                                    {mov.file_path && (
+                                                                        <a
+                                                                            href={`/storage/${mov.file_path}`}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className="text-xs text-blue-600 underline"
+                                                                        >
+                                                                            View file
+                                                                        </a>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        );
+                    })()}
+
                     {selectedRating && (
-                        <div className="space-y-4">
+                        <div className="space-y-4 border-t pt-4 mt-2">
+                            <p className="text-sm font-semibold text-gray-700">
+                                Rating detail — SY {selectedRating.rating_period}
+                            </p>
                             <div className="grid grid-cols-3 gap-4">
                                 <div className={`p-4 rounded-lg ${getRatingColor(selectedRating.numerical_rating)}`}>
                                     <p className="text-sm font-medium opacity-80">Rating Equivalency</p>
@@ -738,9 +960,19 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, total
                         <Button variant="outline" onClick={() => setIsViewDetailsModalOpen(false)}>
                             Close
                         </Button>
-                        <Button 
+                        <Button
+                            variant="outline"
+                            className="border-green-600 text-green-700 hover:bg-green-50"
+                            onClick={generateRatingSummaryOfficial}
+                            disabled={!selectedRating}
+                        >
+                            <ClipboardList className="h-4 w-4 mr-2" />
+                            Generate Ratings Summary
+                        </Button>
+                        <Button
                             className="bg-blue-600 hover:bg-blue-700"
                             onClick={exportRatingToPDF}
+                            disabled={!selectedRating}
                         >
                             <FileDown className="h-4 w-4 mr-2" />
                             Export PDF

@@ -56,8 +56,12 @@ class IpcrfManagementController extends Controller
                     // Load ALL ratings for rating history display (no year filter here)
                     $q->orderBy('rating_period', 'desc')->orderBy('created_at', 'desc');
                 },
+                // All MOV submissions across every school year, newest first,
+                // so the Rating Records view can group them by year.
                 'teacherSubmissions' => function ($q) {
-                    $q->latest()->limit(10);
+                    $q->with('objective:id,code,description,kra_id')
+                        ->orderBy('school_year', 'desc')
+                        ->orderBy('created_at', 'desc');
                 }
             ])
             ->withMax('ipcrfRatings as latest_rating_date', 'created_at')
@@ -70,6 +74,21 @@ class IpcrfManagementController extends Controller
 
         if ($search) {
             $query->where('name', 'like', "%{$search}%");
+        }
+
+        // Scope the list to the rater's tier:
+        //   Principal (super-admin) -> Master Teacher I-II only
+        //   Master Teacher (admin)  -> Teacher I-III only
+        $rater = auth()->user();
+        $ratingScope = $rater->hasRole('super-admin') ? 'master_teacher' : 'teacher';
+
+        if ($ratingScope === 'master_teacher') {
+            $query->where('division', 'like', '%"position_range":"MT%');
+        } else {
+            $query->where(function ($q) {
+                $q->whereNull('division')
+                    ->orWhere('division', 'not like', '%"position_range":"MT%');
+            });
         }
 
         // Order by latest IPCRF rating submission date (most recent first)
@@ -103,6 +122,11 @@ class IpcrfManagementController extends Controller
             'kras' => $kras,
             'totalObjectives' => $fallbackTotal,
             'currentSchoolYear' => $currentSchoolYear,
+            'ratingScope' => [
+                'tier' => $ratingScope,
+                'label' => $ratingScope === 'master_teacher' ? 'Master Teacher I-II' : 'Teacher I-III',
+                'raterRole' => $rater->roleLabel(),
+            ],
             'filters' => [
                 'search' => $search,
                 'status' => $statusFilter,
@@ -117,6 +141,12 @@ class IpcrfManagementController extends Controller
         if (!$teacher->hasRole('teacher')) {
             return redirect()->route('admin.ipcrf.submissions')
                 ->with('error', 'Invalid teacher selected.');
+        }
+
+        // Tier check: a Master Teacher (admin) may not rate a Master Teacher I-II.
+        if (! auth()->user()->canRateIpcrfTier($teacher->ipcrfTier())) {
+            return redirect()->route('admin.ipcrf.submissions')
+                ->with('error', 'You are not allowed to rate this teacher. Master Teachers rate Teacher I-III; the Principal rates Master Teacher I-II.');
         }
 
         // Get school year from request, default to current active config
@@ -137,7 +167,7 @@ class IpcrfManagementController extends Controller
 
         // Get teacher's IPCRF submissions with related data for selected year
         $query = TeacherSubmission::where('teacher_id', $teacher->id)
-            ->with(['objective', 'competency']);
+            ->with(['objective.kra', 'competency']);
         
         if ($schoolYear) {
             $query->where('school_year', $schoolYear);
@@ -171,6 +201,14 @@ class IpcrfManagementController extends Controller
         ]);
 
         $teacherId = $request->teacher_id;
+
+        // Tier check: block a Master Teacher (admin) from rating a Master Teacher I-II.
+        $ratee = User::find($teacherId);
+        if ($ratee && ! auth()->user()->canRateIpcrfTier($ratee->ipcrfTier())) {
+            return redirect()->route('admin.ipcrf.submissions')
+                ->with('error', 'You are not allowed to rate this teacher. Master Teachers rate Teacher I-III; the Principal rates Master Teacher I-II.');
+        }
+
         $totalRating = 0;
         $submissionCount = count($request->ratings);
 
@@ -227,6 +265,12 @@ class IpcrfManagementController extends Controller
             'kra_details' => 'required|array',
             'remarks' => 'nullable|string',
         ]);
+
+        // Tier check: block a Master Teacher (admin) from rating a Master Teacher I-II.
+        $ratee = User::find($request->teacher_id);
+        if ($ratee && ! auth()->user()->canRateIpcrfTier($ratee->ipcrfTier())) {
+            return back()->with('error', 'You are not allowed to rate this teacher. Master Teachers rate Teacher I-III; the Principal rates Master Teacher I-II.');
+        }
 
         // Calculate total score and average rating from KRA details
         $totalScore = 0;

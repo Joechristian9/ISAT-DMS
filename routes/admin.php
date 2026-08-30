@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\PendingActionController;
 use App\Http\Controllers\Admin\TeacherManagementController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\IpcrfConfigurationController;
+use App\Http\Controllers\Admin\UserManagementController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(function () {
@@ -82,5 +83,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
         Route::get('/pending-actions', [PendingActionController::class, 'index'])->name('pending-actions');
         Route::post('/pending-actions/{pendingAction}/approve', [PendingActionController::class, 'approve'])->name('pending-actions.approve');
         Route::post('/pending-actions/{pendingAction}/reject', [PendingActionController::class, 'reject'])->name('pending-actions.reject');
+
+        // User Management - Principal / Master Teacher accounts
+        Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
+        Route::post('/users', [UserManagementController::class, 'store'])->name('users.store');
+        Route::put('/users/{user}', [UserManagementController::class, 'update'])->name('users.update');
+        Route::post('/users/{user}/reset-password', [UserManagementController::class, 'resetPassword'])->name('users.reset-password');
+        Route::delete('/users/{user}', [UserManagementController::class, 'destroy'])->name('users.destroy');
     });
 });

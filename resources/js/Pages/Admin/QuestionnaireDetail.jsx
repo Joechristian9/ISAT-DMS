@@ -21,6 +21,8 @@ import { Badge } from '@/components/ui/badge';
 
 export default function QuestionnaireDetail({ questionnaire }) {
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+    const [responseStep, setResponseStep] = useState(0);
+    const RESPONSES_PER_STEP = 10;
 
     // Survey questions array (same as teacher form)
     const surveyQuestions = [
@@ -235,13 +237,57 @@ export default function QuestionnaireDetail({ questionnaire }) {
                                 Survey Responses
                             </h2>
                             
-                            <div className="space-y-3">
-                                {Object.entries(questionnaire.responses)
-                                    .sort(([keyA], [keyB]) => {
-                                        const numA = parseInt(keyA.replace('question_', ''));
-                                        const numB = parseInt(keyB.replace('question_', ''));
-                                        return numA - numB;
-                                    })
+                            {(() => {
+                                const sortedResponses = Object.entries(questionnaire.responses).sort(([keyA], [keyB]) => {
+                                    const numA = parseInt(keyA.replace('question_', ''));
+                                    const numB = parseInt(keyB.replace('question_', ''));
+                                    return numA - numB;
+                                });
+                                const totalSteps = Math.ceil(sortedResponses.length / RESPONSES_PER_STEP);
+                                const currentStep = Math.min(responseStep, Math.max(0, totalSteps - 1));
+                                const start = currentStep * RESPONSES_PER_STEP;
+                                const stepResponses = sortedResponses.slice(start, start + RESPONSES_PER_STEP);
+                                return (
+                                    <>
+                                    {totalSteps > 1 && (
+                                        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                                            <p className="text-sm font-semibold text-gray-600">
+                                                Questions {start + 1}&ndash;{Math.min(start + RESPONSES_PER_STEP, sortedResponses.length)} of {sortedResponses.length}
+                                            </p>
+                                            <div className="flex items-center gap-1.5">
+                                                {Array.from({ length: totalSteps }).map((_, i) => (
+                                                    <button
+                                                        key={i}
+                                                        type="button"
+                                                        onClick={() => setResponseStep(i)}
+                                                        className={`h-2.5 w-2.5 rounded-full transition-colors ${i === currentStep ? 'bg-yellow-600' : 'bg-yellow-200 hover:bg-yellow-300'}`}
+                                                        aria-label={`Go to step ${i + 1}`}
+                                                    />
+                                                ))}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    disabled={currentStep === 0}
+                                                    onClick={() => setResponseStep((s) => Math.max(0, s - 1))}
+                                                >
+                                                    Previous
+                                                </Button>
+                                                <span className="text-xs text-gray-500">Step {currentStep + 1} / {totalSteps}</span>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    disabled={currentStep >= totalSteps - 1}
+                                                    onClick={() => setResponseStep((s) => Math.min(totalSteps - 1, s + 1))}
+                                                >
+                                                    Next
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="space-y-3">
+                                {stepResponses
                                     .map(([questionKey, rating]) => {
                                         const questionNumber = parseInt(questionKey.replace('question_', ''));
                                         const questionText = surveyQuestions[questionNumber - 1] || 'Question not found';
@@ -271,8 +317,11 @@ export default function QuestionnaireDetail({ questionnaire }) {
                                             </div>
                                         );
                                     })}
-                            </div>
-                            
+                                    </div>
+                                    </>
+                                );
+                            })()}
+
                             {/* Average Rating */}
                             <div className="mt-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-6 border-2 border-green-200">
                                 <div className="text-center">

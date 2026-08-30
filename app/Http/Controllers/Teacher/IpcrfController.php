@@ -75,7 +75,16 @@ class IpcrfController extends Controller
         ->where('is_active', true)
         ->where(function($query) use ($activeConfig) {
             $query->whereNull('ipcrf_configuration_id') // Default KRAs
-                  ->orWhere('ipcrf_configuration_id', $activeConfig->id); // Custom KRAs for this config
+                  ->orWhere('ipcrf_configuration_id', $activeConfig->id); // Custom KRAs created for this config
+
+            // A custom KRA created for a previous school year and reused here:
+            // keep it if one of its objectives was re-selected into this config.
+            if (!empty($activeConfig->selected_objective_ids)) {
+                $query->orWhereHas('objectives', function ($q) use ($activeConfig) {
+                    $q->whereIn('id', $activeConfig->selected_objective_ids)
+                      ->where('is_active', true);
+                });
+            }
         })
         // Filter KRAs by position tier as well
         ->where(function($query) use ($teacherPositionTier) {

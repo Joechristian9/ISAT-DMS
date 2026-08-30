@@ -1,15 +1,20 @@
 import { Head, useForm, Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
-import { Send, FileText, ArrowLeft, Star } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Send, FileText, ArrowLeft, Star, ChevronLeft, ChevronRight, CheckCircle2 } from 'lucide-react';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+const QUESTIONS_PER_STEP = 10;
+
 export default function Questionnaire({ questionnaire, schoolYear, user }) {
     const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
-    
-    const { data, setData, post, processing, errors } = useForm({
+    const [step, setStep] = useState(0);
+    const confirmRef = useRef(null);
+    const isSubmitted = questionnaire?.status === 'submitted';
+
+    const { data, setData, post, processing, errors, transform } = useForm({
         school_year: schoolYear,
         name: questionnaire?.name || user.name || '',
         sex: questionnaire?.sex || '',
@@ -81,28 +86,36 @@ export default function Questionnaire({ questionnaire, schoolYear, user }) {
         }
         
         if (showSubmitConfirm) {
-            setData('status', 'submitted');
+            // Force the payload status regardless of React state batching timing
+            transform((payload) => ({ ...payload, status: 'submitted' }));
             post(route('teacher.questionnaire.store'), {
                 onSuccess: () => {
+                    transform((payload) => payload);
                     toast.success('Thank you! Your feedback has been submitted successfully.');
                     setShowSubmitConfirm(false);
                 },
                 onError: () => {
+                    transform((payload) => payload);
                     toast.error('Failed to submit questionnaire. Please try again.');
                 }
             });
         } else {
             setShowSubmitConfirm(true);
+            setTimeout(() => {
+                confirmRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 50);
         }
     };
 
     const handleSaveDraft = () => {
-        setData('status', 'draft');
+        transform((payload) => ({ ...payload, status: 'draft' }));
         post(route('teacher.questionnaire.store'), {
             onSuccess: () => {
+                transform((payload) => payload);
                 toast.success('Draft saved successfully!');
             },
             onError: () => {
+                transform((payload) => payload);
                 toast.error('Failed to save draft.');
             }
         });
@@ -114,6 +127,53 @@ export default function Questionnaire({ questionnaire, schoolYear, user }) {
 
     const getProgress = () => {
         return Math.round((getAnsweredCount() / surveyQuestions.length) * 100);
+    };
+
+    // ---- Stepper: show QUESTIONS_PER_STEP questions per batch ----
+    const totalSteps = Math.ceil(surveyQuestions.length / QUESTIONS_PER_STEP);
+    const stepStart = step * QUESTIONS_PER_STEP;
+    const stepEnd = Math.min(stepStart + QUESTIONS_PER_STEP, surveyQuestions.length);
+    const stepQuestions = surveyQuestions
+        .map((question, index) => ({ question, index }))
+        .slice(stepStart, stepEnd);
+    const isLastStep = step === totalSteps - 1;
+
+    const isAnswered = (index) => {
+        const value = data.responses[`question_${index + 1}`];
+        return value !== null && value !== undefined && value !== '';
+    };
+
+    const stepAnsweredCount = (stepIndex) => {
+        const start = stepIndex * QUESTIONS_PER_STEP;
+        const end = Math.min(start + QUESTIONS_PER_STEP, surveyQuestions.length);
+        let count = 0;
+        for (let i = start; i < end; i++) {
+            if (isAnswered(i)) count++;
+        }
+        return count;
+    };
+
+    const stepSize = (stepIndex) => {
+        const start = stepIndex * QUESTIONS_PER_STEP;
+        return Math.min(start + QUESTIONS_PER_STEP, surveyQuestions.length) - start;
+    };
+
+    const currentStepComplete = stepAnsweredCount(step) === stepQuestions.length;
+
+    const goToStep = (target) => {
+        setShowSubmitConfirm(false);
+        setStep(Math.max(0, Math.min(target, totalSteps - 1)));
+        if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
+
+    const handleNext = () => {
+        if (!currentStepComplete) {
+            toast.error(`Please answer all ${stepQuestions.length} questions in this section before continuing.`);
+            return;
+        }
+        goToStep(step + 1);
     };
 
     return (
@@ -224,6 +284,40 @@ export default function Questionnaire({ questionnaire, schoolYear, user }) {
                         </div>
                     </div>
 
+                    {/* Already submitted */}
+                    {isSubmitted && (
+                        <div className="bg-green-50 border-2 border-green-400 rounded-xl p-5 mb-6 flex items-center gap-3">
+                            <CheckCircle2 className="h-6 w-6 text-green-600 flex-shrink-0" />
+                            <p className="text-green-900 font-semibold">
+                                This questionnaire has already been submitted for SY {schoolYear}. Your Signed IPCRF submission is now unlocked.
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Answered everything but not submitted yet */}
+                    {!isSubmitted && getAnsweredCount() === surveyQuestions.length && (
+                        <div className="bg-amber-50 border-2 border-amber-400 rounded-xl p-5 mb-6">
+                            <div className="flex items-start gap-3">
+                                <Send className="h-6 w-6 text-amber-600 flex-shrink-0 mt-0.5" />
+                                <div className="flex-1">
+                                    <p className="text-amber-900 font-bold text-lg">One more step — you haven't submitted yet</p>
+                                    <p className="text-amber-800 mt-1">
+                                        All {surveyQuestions.length} questions are answered, but this is still a <span className="font-semibold">draft</span>.
+                                        Click <span className="font-semibold">Submit Questionnaire</span> below, then confirm — otherwise your Signed IPCRF stays locked.
+                                    </p>
+                                    <Button
+                                        type="button"
+                                        onClick={() => { goToStep(totalSteps - 1); handleSubmit({ preventDefault: () => {} }); }}
+                                        className="mt-3 bg-amber-600 hover:bg-amber-700 text-white"
+                                    >
+                                        <Send className="h-4 w-4 mr-2" />
+                                        Go to Submit
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Instructions */}
                     <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border-2 border-gray-200">
                         <p className="text-gray-700 mb-4">
@@ -249,18 +343,61 @@ export default function Questionnaire({ questionnaire, schoolYear, user }) {
 
                     {/* Survey Questions */}
                     <form onSubmit={handleSubmit}>
+                        {/* Stepper indicator */}
+                        <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border-2 border-gray-200">
+                            <div className="flex items-center justify-between gap-2">
+                                {Array.from({ length: totalSteps }).map((_, i) => {
+                                    const answered = stepAnsweredCount(i);
+                                    const size = stepSize(i);
+                                    const done = answered === size;
+                                    const active = i === step;
+                                    return (
+                                        <div key={i} className="flex-1 flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => goToStep(i)}
+                                                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-all ${
+                                                    active
+                                                        ? 'bg-blue-600 text-white shadow'
+                                                        : done
+                                                            ? 'bg-green-100 text-green-800'
+                                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                }`}
+                                            >
+                                                {done ? (
+                                                    <CheckCircle2 className="h-4 w-4" />
+                                                ) : (
+                                                    <span className={`flex h-5 w-5 items-center justify-center rounded-full text-xs ${active ? 'bg-white text-blue-600' : 'bg-white text-gray-500'}`}>
+                                                        {i + 1}
+                                                    </span>
+                                                )}
+                                                <span className="hidden sm:inline">Section {i + 1}</span>
+                                                <span className="text-xs opacity-80">({answered}/{size})</span>
+                                            </button>
+                                            {i < totalSteps - 1 && <div className="hidden md:block flex-1 h-0.5 bg-gray-200" />}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
                         <div className="bg-white rounded-xl shadow-lg p-8 mb-6 border-2 border-gray-200">
-                            <h2 className="text-2xl font-bold text-gray-900 mb-6">Survey Questions</h2>
-                            
+                            <div className="flex items-baseline justify-between mb-6">
+                                <h2 className="text-2xl font-bold text-gray-900">Survey Questions</h2>
+                                <span className="text-sm font-semibold text-gray-500">
+                                    Section {step + 1} of {totalSteps} &middot; Items {stepStart + 1}&ndash;{stepEnd} of {surveyQuestions.length}
+                                </span>
+                            </div>
+
                             <div className="space-y-6">
-                                {surveyQuestions.map((question, index) => (
+                                {stepQuestions.map(({ question, index }) => (
                                     <div key={index} className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-lg p-6 border-2 border-gray-200">
                                         <div className="mb-4">
                                             <p className="font-semibold text-gray-900">
                                                 {index + 1}. {question}
                                             </p>
                                         </div>
-                                        
+
                                         <div className="flex flex-wrap gap-4">
                                             {ratingScale.map((scale) => (
                                                 <label
@@ -291,11 +428,42 @@ export default function Questionnaire({ questionnaire, schoolYear, user }) {
                                     </div>
                                 ))}
                             </div>
+
+                            {/* Step navigation */}
+                            <div className="flex items-center justify-between gap-4 mt-8 pt-6 border-t border-gray-200">
+                                <Button
+                                    type="button"
+                                    onClick={() => goToStep(step - 1)}
+                                    disabled={step === 0}
+                                    className="bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-40"
+                                >
+                                    <ChevronLeft className="h-4 w-4 mr-1" />
+                                    Back
+                                </Button>
+
+                                <span className="text-sm text-gray-500">
+                                    {stepAnsweredCount(step)}/{stepQuestions.length} answered in this section
+                                </span>
+
+                                {!isLastStep ? (
+                                    <Button
+                                        type="button"
+                                        onClick={handleNext}
+                                        disabled={!currentStepComplete}
+                                        className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-40"
+                                    >
+                                        Next
+                                        <ChevronRight className="h-4 w-4 ml-1" />
+                                    </Button>
+                                ) : (
+                                    <span className="text-sm font-semibold text-green-700">Final section</span>
+                                )}
+                            </div>
                         </div>
 
                         {/* Submit Confirmation */}
-                        {showSubmitConfirm && (
-                            <div className="bg-yellow-50 border-2 border-yellow-400 rounded-xl p-6 mb-6">
+                        {isLastStep && showSubmitConfirm && (
+                            <div ref={confirmRef} className="bg-yellow-50 border-2 border-yellow-400 rounded-xl p-6 mb-6">
                                 <p className="text-yellow-900 font-semibold mb-4">
                                     ⚠️ Are you sure you want to submit? You won't be able to edit your responses after submission.
                                 </p>
@@ -330,18 +498,20 @@ export default function Questionnaire({ questionnaire, schoolYear, user }) {
                                 >
                                     Save Draft
                                 </Button>
-                                <Button
-                                    type="submit"
-                                    disabled={processing || getAnsweredCount() < surveyQuestions.length}
-                                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
-                                >
-                                    <Send className="h-4 w-4 mr-2" />
-                                    {showSubmitConfirm ? 'Confirm Submit' : 'Submit Questionnaire'}
-                                </Button>
+                                {isLastStep && (
+                                    <Button
+                                        type="submit"
+                                        disabled={processing || getAnsweredCount() < surveyQuestions.length}
+                                        className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
+                                    >
+                                        <Send className="h-4 w-4 mr-2" />
+                                        {showSubmitConfirm ? 'Confirm Submit' : 'Submit Questionnaire'}
+                                    </Button>
+                                )}
                             </div>
-                            {getAnsweredCount() < surveyQuestions.length && (
+                            {isLastStep && getAnsweredCount() < surveyQuestions.length && (
                                 <p className="text-red-600 text-sm mt-2 text-right">
-                                    Please answer all questions before submitting
+                                    Please answer all {surveyQuestions.length} questions (across every section) before submitting
                                 </p>
                             )}
                         </div>

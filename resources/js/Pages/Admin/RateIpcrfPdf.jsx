@@ -26,9 +26,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Toaster } from "@/components/ui/sonner";
-import { ArrowLeft, Save, User, Award, Star, FileText, Download } from 'lucide-react';
+import { ArrowLeft, Save, User, Award, Star, FileText, Download, ClipboardList } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { generateIpcrfOfficialForm } from '@/lib/ipcrfOfficialForm';
 
 export default function RateIpcrfPdf({ teacher, submissions, availableYears, selectedYear, auth, flash }) {
     const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
@@ -469,6 +470,63 @@ export default function RateIpcrfPdf({ teacher, submissions, availableYears, sel
         }
     };
 
+    // Consolidate every rated submission into the official IPCRF Part 1 form
+    const generateRatingsSummary = async () => {
+        try {
+            const ratedItems = submissions
+                .map((sub, index) => ({ sub, rating: ratings[index] }))
+                .filter((item) => item.rating > 0);
+
+            if (ratedItems.length === 0) {
+                toast.error('Rate at least one submission before generating a summary.');
+                return;
+            }
+
+            const schoolYear = selectedYear || ratedItems[0].sub.school_year || '';
+
+            // Group rated submissions by KRA (domain), preserving KRA order
+            const groupsMap = new Map();
+            ratedItems.forEach(({ sub, rating }) => {
+                const kra = sub.objective?.kra;
+                const key = kra?.id ?? sub.objective?.kra_id ?? `k-${sub.id}`;
+                if (!groupsMap.has(key)) {
+                    groupsMap.set(key, {
+                        order: kra?.order ?? 999,
+                        domain: kra?.name || 'Key Result Area',
+                        objectives: [],
+                    });
+                }
+                groupsMap.get(key).objectives.push({
+                    description: sub.objective?.description || sub.objective?.code || 'Objective',
+                    weight: sub.objective?.weight ?? null,
+                    rating,
+                });
+            });
+            const kraGroups = [...groupsMap.values()].sort((a, b) => a.order - b.order);
+
+            await generateIpcrfOfficialForm({
+                employee: {
+                    name: teacher.name || '',
+                    position: teacher.current_position?.name || '',
+                    division: 'ISABELA SCHOOL OF ARTS AND TRADES - Ilagan Campus',
+                },
+                rater: {
+                    name: auth.user.name || '',
+                    position: auth.user.roles?.[0]?.name || '',
+                },
+                ratingPeriod: schoolYear,
+                dateOfReview: new Date(),
+                kraGroups,
+                fileName: `IPCRF_Part1_${(teacher.name || 'teacher').replace(/\s+/g, '_')}_${schoolYear || 'SY'}.pdf`,
+            });
+
+            toast.success('IPCRF Part 1 form generated!');
+        } catch (error) {
+            console.error('Error generating ratings summary:', error);
+            toast.error('Failed to generate summary: ' + error.message);
+        }
+    };
+
     // Pagination for unified table
     const [currentTablePage, setCurrentTablePage] = useState(0);
     const tableItemsPerPage = 5;
@@ -856,7 +914,18 @@ export default function RateIpcrfPdf({ teacher, submissions, availableYears, sel
 
                                             {/* Submit Button */}
                                             {!isTeacher && (
-                                                <div className="flex items-center justify-end pt-6 border-t mt-6">
+                                                <div className="flex flex-wrap items-center justify-between gap-3 pt-6 border-t mt-6">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        onClick={generateRatingsSummary}
+                                                        disabled={ratings.filter(r => r > 0).length === 0}
+                                                        className="border-green-600 text-green-700 hover:bg-green-50"
+                                                        title="Compile all scores and ratings into one summary document"
+                                                    >
+                                                        <ClipboardList className="h-4 w-4 mr-2" />
+                                                        Generate Ratings Summary
+                                                    </Button>
                                                     <div className="flex gap-3">
                                                         <Link href={route('admin.ipcrf.submissions')}>
                                                             <Button type="button" variant="outline">
@@ -864,7 +933,7 @@ export default function RateIpcrfPdf({ teacher, submissions, availableYears, sel
                                                                 Cancel
                                                             </Button>
                                                         </Link>
-                                                        <Button 
+                                                        <Button
                                                             onClick={handleSubmit}
                                                             className="bg-green-600 hover:bg-green-700 px-8"
                                                             disabled={ratings.filter(r => r > 0).length !== submissions.length}

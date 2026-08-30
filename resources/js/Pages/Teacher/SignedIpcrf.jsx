@@ -1,12 +1,12 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Upload, FileText, Trash2, CheckCircle, XCircle, Clock, Download, AlertCircle, Info } from 'lucide-react';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-export default function SignedIpcrf({ signedIpcrfs, activeConfig, user }) {
+export default function SignedIpcrf({ signedIpcrfs, activeConfig, user, outstandingSurveys = [], surveysComplete = true }) {
     const [showUploadForm, setShowUploadForm] = useState(false);
     const [showInfoModal, setShowInfoModal] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -14,9 +14,41 @@ export default function SignedIpcrf({ signedIpcrfs, activeConfig, user }) {
         notes: '',
     });
 
-    const canSubmit = activeConfig && !activeConfig.is_locked && 
-        !signedIpcrfs.some(s => s.school_year === activeConfig.school_year && 
-                              (s.status === 'submitted' || s.status === 'approved'));
+    const alreadySubmitted = activeConfig && signedIpcrfs.some(s =>
+        s.school_year === activeConfig.school_year &&
+        (s.status === 'submitted' || s.status === 'approved'));
+
+    const canSubmit = activeConfig && !activeConfig.is_locked && surveysComplete && !alreadySubmitted;
+
+    // While surveys are still outstanding, keep checking (on tab focus + a slow
+    // interval) so the page updates itself the moment the teacher finishes them
+    // in another tab — no manual refresh needed.
+    useEffect(() => {
+        if (!activeConfig || alreadySubmitted || surveysComplete) return;
+
+        const refresh = () => router.reload({ only: ['outstandingSurveys', 'surveysComplete'] });
+        const onVisible = () => { if (document.visibilityState === 'visible') refresh(); };
+
+        window.addEventListener('focus', refresh);
+        document.addEventListener('visibilitychange', onVisible);
+        const intervalId = setInterval(refresh, 15000);
+
+        return () => {
+            window.removeEventListener('focus', refresh);
+            document.removeEventListener('visibilitychange', onVisible);
+            clearInterval(intervalId);
+        };
+    }, [activeConfig, alreadySubmitted, surveysComplete]);
+
+    // When the surveys flip to complete, open the upload form automatically
+    const prevSurveysComplete = useRef(surveysComplete);
+    useEffect(() => {
+        if (!prevSurveysComplete.current && surveysComplete && activeConfig && !alreadySubmitted) {
+            setShowUploadForm(true);
+            toast.success('All required surveys are complete — you can now submit your signed IPCRF.');
+        }
+        prevSurveysComplete.current = surveysComplete;
+    }, [surveysComplete, activeConfig, alreadySubmitted]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -115,7 +147,48 @@ export default function SignedIpcrf({ signedIpcrfs, activeConfig, user }) {
 
                 {/* Main Content */}
                 <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                    
+
+                    {/* Surveys Not Complete - blocks submission */}
+                    {activeConfig && !activeConfig.is_locked && !alreadySubmitted && !surveysComplete && (
+                        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-400 rounded-2xl shadow-xl p-8 mb-6">
+                            <div className="flex items-start gap-4">
+                                <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <AlertCircle className="h-8 w-8 text-amber-600" />
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="text-2xl font-bold text-amber-900 mb-2">Complete Your Surveys First</h3>
+                                    <p className="text-lg text-amber-800 leading-relaxed">
+                                        You cannot submit your signed IPCRF for <span className="font-bold">SY {activeConfig.school_year}</span> until
+                                        every required survey has been completed and submitted.
+                                    </p>
+
+                                    <ul className="mt-5 space-y-3">
+                                        {outstandingSurveys.map((survey) => (
+                                            <li
+                                                key={survey.key}
+                                                className="flex flex-wrap items-center justify-between gap-3 p-4 bg-white rounded-xl border-2 border-amber-200"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <XCircle className="h-5 w-5 text-amber-500 flex-shrink-0" />
+                                                    <div>
+                                                        <p className="font-bold text-gray-900">{survey.label}</p>
+                                                        <p className="text-sm text-amber-700">{survey.status}</p>
+                                                    </div>
+                                                </div>
+                                                <a
+                                                    href={survey.route}
+                                                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-xl font-semibold shadow-lg transition-all hover:scale-105"
+                                                >
+                                                    Complete now
+                                                </a>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Upload Section */}
                     {canSubmit && (
                         <div className="bg-gradient-to-br from-white via-emerald-50 to-white rounded-2xl shadow-2xl p-8 mb-6 border-2 border-emerald-300 relative overflow-hidden">

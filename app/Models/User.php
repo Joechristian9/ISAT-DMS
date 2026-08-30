@@ -67,6 +67,59 @@ class User extends Authenticatable
         return $this->hasRole('teacher');
     }
 
+    /**
+     * Human-facing label for this account's role.
+     * The spatie role keys stay as-is; only the wording changes.
+     *   super-admin -> Principal
+     *   admin       -> Master Teacher
+     *   teacher     -> Teacher
+     */
+    public function roleLabel(): string
+    {
+        if ($this->hasRole('super-admin')) {
+            return 'Principal';
+        }
+        if ($this->hasRole('admin')) {
+            return 'Master Teacher';
+        }
+        if ($this->hasRole('teacher')) {
+            return 'Teacher';
+        }
+
+        return 'User';
+    }
+
+    /**
+     * Which IPCRF rating tier this teacher belongs to, read from the
+     * position_range stored in the division JSON.
+     *   "MT1 - MT2" -> master_teacher
+     *   anything else -> teacher
+     */
+    public function ipcrfTier(): string
+    {
+        $division = json_decode($this->division, true);
+        $range = is_array($division) ? ($division['position_range'] ?? '') : '';
+
+        return str_starts_with((string) $range, 'MT') ? 'master_teacher' : 'teacher';
+    }
+
+    /**
+     * Can this account rate a teacher who sits in the given tier?
+     *   Principal (super-admin) rates the Master Teacher I-II tier only.
+     *   Master Teacher (admin)  rates the Teacher I-III tier only.
+     */
+    public function canRateIpcrfTier(string $tier): bool
+    {
+        if ($this->hasRole('super-admin')) {
+            return $tier === 'master_teacher';
+        }
+        if ($this->hasRole('admin')) {
+            return $tier === 'teacher';
+        }
+
+        return false;
+    }
+
     public function isAdmin(): bool
     {
         return $this->hasRole('admin');

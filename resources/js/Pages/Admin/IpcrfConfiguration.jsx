@@ -1113,25 +1113,6 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                                             </TableCell>
                                                             <TableCell className="text-right">
                                                                 <div className="flex items-center justify-end gap-2">
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="outline"
-                                                                        onClick={() => openEditModal(config)}
-                                                                        disabled={config.is_locked}
-                                                                        title={config.is_locked ? 'Configuration is locked' : 'Edit configuration'}
-                                                                    >
-                                                                        <Edit className="h-3 w-3" />
-                                                                    </Button>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="outline"
-                                                                        onClick={() => openDeleteModal(config)}
-                                                                        disabled={config.is_locked}
-                                                                        className="text-red-600 hover:text-red-700"
-                                                                        title={config.is_locked ? 'Configuration is locked' : 'Delete configuration'}
-                                                                    >
-                                                                        <Trash2 className="h-3 w-3" />
-                                                                    </Button>
                                                                     <DropdownMenu>
                                                                         <DropdownMenuTrigger asChild>
                                                                             <Button
@@ -1143,6 +1124,22 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                                                             </Button>
                                                                         </DropdownMenuTrigger>
                                                                         <DropdownMenuContent align="end">
+                                                                            <DropdownMenuItem
+                                                                                onClick={() => openEditModal(config)}
+                                                                                disabled={config.is_locked}
+                                                                            >
+                                                                                <Edit className="mr-2 h-4 w-4" />
+                                                                                Edit
+                                                                            </DropdownMenuItem>
+                                                                            <DropdownMenuItem
+                                                                                onClick={() => openDeleteModal(config)}
+                                                                                disabled={config.is_locked}
+                                                                                className="text-red-600 focus:text-red-700"
+                                                                            >
+                                                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                                                Delete
+                                                                            </DropdownMenuItem>
+                                                                            <DropdownMenuSeparator />
                                                                             <DropdownMenuItem onClick={openObjectivesModal}>
                                                                                 <Target className="mr-2 h-4 w-4" />
                                                                                 Manage Objectives
