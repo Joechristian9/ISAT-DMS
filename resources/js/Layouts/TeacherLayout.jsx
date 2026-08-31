@@ -149,7 +149,7 @@ export default function TeacherLayout({ children, user = { name: 'User', email: 
                                 }}>
                                     {(user.profile_picture || user.photo) ? (
                                         <img
-                                            src={`/files/${user.profile_picture || user.photo}`}
+                                            src={route('users.avatar', user.id)}
                                             alt={user.name}
                                             className="w-full h-full object-cover"
                                         />

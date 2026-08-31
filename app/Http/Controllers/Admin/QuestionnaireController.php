@@ -162,7 +162,7 @@ class QuestionnaireController extends Controller
                 'id' => $sr->id,
                 'kra' => $sr->kra->name ?? ('KRA #'.$sr->kra_id),
                 'original_name' => $sr->original_name,
-                'file_url' => $sr->file_path ? url('files/'.$sr->file_path) : null,
+                'file_url' => $sr->file_path ? route('admin.questionnaire.self-rating.document', $sr->id) : null,
                 'self_rating' => $sr->self_rating !== null ? (float) $sr->self_rating : null,
                 'notes' => $sr->notes,
                 'uploaded_at' => optional($sr->created_at)->toDateTimeString(),

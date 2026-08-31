@@ -259,7 +259,7 @@ export default function IpcrfHistory({ historyData, user }) {
                                                         {record.signed_ipcrf.status.charAt(0).toUpperCase() + record.signed_ipcrf.status.slice(1)}
                                                     </span>
                                                     <a
-                                                        href={`/files/${record.signed_ipcrf.file_path}`}
+                                                        href={route('teacher.signed-ipcrf.document', record.signed_ipcrf.id)}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                         className="inline-flex items-center px-3 py-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm"

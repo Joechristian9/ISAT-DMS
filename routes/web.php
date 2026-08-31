@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\FileController;
+use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -43,9 +43,10 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
-    // Serve uploaded files (MOV PDFs, signed IPCRFs, photos) through PHP instead
-    // of the public/storage symlink, which Hostinger blocks with a 403.
-    Route::get('/files/{path}', FileController::class)->where('path', '.*')->name('files.show');
+    // Profile photo. Served through PHP (not the public/storage symlink, which
+    // Hostinger has no way to create and answers with a 403). Any signed-in
+    // user may view another user's avatar - it is shown in staff listings.
+    Route::get('/users/{user}/avatar', [DocumentController::class, 'avatar'])->name('users.avatar');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

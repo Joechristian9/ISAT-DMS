@@ -393,7 +393,7 @@ export default function SignedIpcrf({ signedIpcrfs, activeConfig, user, outstand
 
                                                 <div className="flex flex-col gap-3">
                                                     <a
-                                                        href={`/files/${submission.file_path}`}
+                                                        href={route('teacher.signed-ipcrf.document', submission.id)}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                         className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 font-semibold"

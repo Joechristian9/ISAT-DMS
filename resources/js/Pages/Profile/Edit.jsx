@@ -11,9 +11,8 @@ export default function Edit({ mustVerifyEmail, status, auth }) {
     const [photoPreview, setPhotoPreview] = useState(null);
     
     // Use profile_picture (consistent with admin upload) with fallback to photo for backward compatibility
-    const displayPhoto = photoPreview || 
-        (auth.user.profile_picture ? `/files/${auth.user.profile_picture}` :
-        (auth.user.photo ? `/files/${auth.user.photo}` : null));
+    const displayPhoto = photoPreview ||
+        ((auth.user.profile_picture || auth.user.photo) ? route('users.avatar', auth.user.id) : null);
 
     return (
         <TeacherLayout user={auth.user}>

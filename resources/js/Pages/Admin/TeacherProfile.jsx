@@ -244,8 +244,8 @@ export default function TeacherProfile({ teacher, ipcrfStats, promotions, questi
                                 <div className="relative group">
                                     <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-green-500 shadow-lg bg-gray-100 flex items-center justify-center">
                                         {teacher.profile_picture ? (
-                                            <img 
-                                                src={`/files/${teacher.profile_picture}`}
+                                            <img
+                                                src={route('users.avatar', teacher.id)}
                                                 alt={teacher.name}
                                                 className="w-full h-full object-cover"
                                             />

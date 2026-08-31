@@ -23,6 +23,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('/ipcrf', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'index'])->name('ipcrf');
     Route::get('/ipcrf/submissions', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'submissions'])->name('ipcrf.submissions');
     Route::get('/ipcrf/rate/{teacher}', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'rateTeacher'])->name('ipcrf.rate');
+    // Stream a teacher's MOV evidence PDF for the Document Preview / MOV links.
+    Route::get('/ipcrf/submissions/{submission}/document', [\App\Http\Controllers\DocumentController::class, 'submission'])->name('ipcrf.submissions.document');
     Route::post('/ipcrf/submissions/rate', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'storeSubmissionRatings'])->name('ipcrf.submissions.rate');
     Route::post('/ipcrf/review/{submission}', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'review'])->name('ipcrf.review');
     Route::post('/ipcrf/rating', [\App\Http\Controllers\Admin\IpcrfManagementController::class, 'storeRating'])->name('ipcrf.rating.store');
@@ -57,6 +59,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     
     // Questionnaire Results (rolled up per teacher + school year)
     Route::get('/questionnaire-results', [\App\Http\Controllers\Admin\QuestionnaireController::class, 'index'])->name('questionnaire-results');
+    Route::get('/questionnaire/self-rating/{selfRating}/document', [\App\Http\Controllers\DocumentController::class, 'selfRating'])->name('questionnaire.self-rating.document');
     Route::get('/questionnaire/{teacher}/{year?}', [\App\Http\Controllers\Admin\QuestionnaireController::class, 'show'])->name('questionnaire.show');
     Route::post('/questionnaire/status/{questionnaire}', [\App\Http\Controllers\Admin\QuestionnaireController::class, 'updateStatus'])->name('questionnaire.update-status');
     

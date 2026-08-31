@@ -465,7 +465,7 @@ export default function TeacherIpcrf({
                                                                         )}
                                                                         
                                                                         <button
-                                                                            onClick={() => setViewingPdf({ path: submission.file_path, title: `MOV Evidence ${idx + 1}` })}
+                                                                            onClick={() => setViewingPdf({ url: route('teacher.ipcrf.submissions.document', submission.id), title: `MOV Evidence ${idx + 1}` })}
                                                                             className="text-green-600 hover:text-green-800 flex items-center gap-2 w-full justify-center transition-colors"
                                                                         >
                                                                             <FileText className="h-5 w-5" />
@@ -663,7 +663,7 @@ export default function TeacherIpcrf({
                                                         size="sm"
                                                         variant="outline"
                                                         onClick={() => setViewingPdf({
-                                                            path: item.file_path,
+                                                            url: route('teacher.ipcrf.self-rating.document', item.id),
                                                             title: `Self-Rating - ${currentKra.name}`,
                                                         })}
                                                         className="border-2 border-amber-300 text-amber-700 hover:bg-amber-50 font-semibold"
@@ -819,7 +819,7 @@ export default function TeacherIpcrf({
                                     
                                     {/* Download Button */}
                                     <a
-                                        href={`/files/${viewingPdf.path}`}
+                                        href={viewingPdf.url}
                                         download
                                         className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
                                     >
@@ -845,7 +845,7 @@ export default function TeacherIpcrf({
                             <div className="flex-1 overflow-auto bg-gray-100 p-4">
                                 <div className="flex justify-center">
                                     <iframe
-                                        src={`/files/${viewingPdf.path}`}
+                                        src={viewingPdf.url}
                                         className="bg-white shadow-lg rounded-lg"
                                         style={{
                                             width: `${pdfZoom}%`,

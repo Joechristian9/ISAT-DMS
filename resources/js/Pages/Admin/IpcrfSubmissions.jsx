@@ -910,7 +910,7 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, total
                                                                     </span>
                                                                     {mov.file_path && (
                                                                         <a
-                                                                            href={`/files/${mov.file_path}`}
+                                                                            href={route('admin.ipcrf.submissions.document', mov.id)}
                                                                             target="_blank"
                                                                             rel="noopener noreferrer"
                                                                             className="text-xs text-blue-600 underline"

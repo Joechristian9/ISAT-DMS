@@ -235,7 +235,7 @@ export default function IpcrfHistory({ groups, movsPagination, schoolYears, teac
                                                                         <td className="px-3 py-2 text-center">
                                                                             {mov.file_path ? (
                                                                                 <a
-                                                                                    href={`/files/${mov.file_path}`}
+                                                                                    href={route('admin.ipcrf.submissions.document', mov.id)}
                                                                                     target="_blank"
                                                                                     rel="noopener noreferrer"
                                                                                     className="inline-flex items-center gap-1 text-blue-600 underline"
