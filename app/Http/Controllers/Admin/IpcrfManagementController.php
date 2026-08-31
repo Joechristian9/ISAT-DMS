@@ -35,9 +35,12 @@ class IpcrfManagementController extends Controller
         $positionFilter = $request->input('position', '');
 
         // Position tiers the current rater can filter by.
-        //   Principal (super-admin) -> every tier
-        //   Master Teacher (admin)  -> Teacher tiers only
-        $raterIsPrincipal = auth()->user()->hasRole('super-admin');
+        //   Administrator (super-admin + teacher) -> every tier, unfiltered
+        //   Principal (super-admin)               -> every tier, Master Teachers by default
+        //   Master Teacher (admin)                -> Teacher tiers only
+        $rater = auth()->user();
+        $raterIsAdministrator = $rater->isAdministrator();
+        $raterIsPrincipal = $rater->hasRole('super-admin');
         $positionOptions = $raterIsPrincipal
             ? ['T1 - T3', 'T4 - T7', 'MT1 - MT2', 'MT3 - MT5']
             : ['T1 - T3', 'T4 - T7'];
@@ -58,7 +61,11 @@ class IpcrfManagementController extends Controller
         $scopeTier = $validPosition
             ? $positionFilter
             : ($raterIsPrincipal ? 'MT1 - MT2' : 'T1 - T3');
-        $scopeSchoolYear = $schoolYearByTier[$scopeTier] ?? $currentSchoolYear;
+        // The Administrator's default view spans every tier, so no single tier's
+        // school year applies - leave it null so has_uploads matches any MOV.
+        $scopeSchoolYear = ($raterIsAdministrator && ! $validPosition)
+            ? null
+            : ($schoolYearByTier[$scopeTier] ?? $currentSchoolYear);
 
         // Expected objective count per position tier, taken from each tier's configuration
         $objectiveTotalsByTier = $activeConfigs
@@ -108,12 +115,13 @@ class IpcrfManagementController extends Controller
             });
         }
 
-        $rater = auth()->user();
         $ratingScope = $raterIsPrincipal ? 'master_teacher' : 'teacher';
 
         if ($validPosition) {
             // An explicit position pick sets the scope (within what the rater may see).
             $query->where('division', 'like', '%"position_range":"' . $positionFilter . '"%');
+        } elseif ($raterIsAdministrator) {
+            // Administrator: every teacher in every position tier - no restriction.
         } elseif ($ratingScope === 'master_teacher') {
             // Principal default view: Master Teacher tiers.
             $query->where('division', 'like', '%"position_range":"MT%');
@@ -166,7 +174,9 @@ class IpcrfManagementController extends Controller
                 'tier' => $ratingScope,
                 'label' => $validPosition
                     ? $positionFilter
-                    : ($raterIsPrincipal ? 'all positions' : 'Teacher I-VII'),
+                    : ($raterIsAdministrator
+                        ? 'all positions'
+                        : ($raterIsPrincipal ? 'Master Teacher I-V' : 'Teacher I-VII')),
                 'raterRole' => $rater->roleLabel(),
                 'allTiers' => $raterIsPrincipal,
             ],
