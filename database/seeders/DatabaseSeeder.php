@@ -38,7 +38,7 @@ class DatabaseSeeder extends Seeder
 
         // Plain teacher roster (name + position only). MUST run after
         // PersonnelSeeder - its stale-account cleanup would otherwise delete
-        // these @isat.edu.ph accounts.
+        // these @deped.gov.ph accounts.
         $this->call(TeacherSeeder::class);
 
         // SHS "Performance Rating & Challenges Encountered" questionnaire template.

@@ -15,7 +15,7 @@ use Spatie\Permission\Models\Role;
  * career_stage, ...) is intentionally left null "for the mean time" and can be
  * filled in later from the admin UI or a follow-up seeder.
  *
- * Accounts are matched by generated @isat.edu.ph email; existing passwords are
+ * Accounts are matched by generated @deped.gov.ph email; existing passwords are
  * never overwritten. This seeder only upserts - it never deletes - so it is safe
  * to run alongside PersonnelSeeder / MasterTeacherSeeder.
  *
@@ -29,11 +29,11 @@ class TeacherSeeder extends Seeder
 {
     /**
      * Dual-role accounts: teacher panel + super-admin panel. Keyed by generated
-     * @isat.edu.ph email. The value overrides the division "position_title" so
+     * @deped.gov.ph email. The value overrides the division "position_title" so
      * roleLabel() shows it instead of "Principal".
      */
     private const DUAL_ROLE = [
-        'prince.ariel.r.alvaro@isat.edu.ph' => 'Administrator',
+        'prince.ariel.r.alvaro@deped.gov.ph' => 'Administrator',
     ];
 
     /** [name, position|null] */
@@ -161,13 +161,13 @@ class TeacherSeeder extends Seeder
         return ['T1 - T3', 'Beginning Towards Proficient'];
     }
 
-    /** Guarantee a unique @isat.edu.ph address within this run. */
+    /** Guarantee a unique @deped.gov.ph address within this run. */
     private function uniqueEmail(string $slug, array &$used): string
     {
-        $email = "{$slug}@isat.edu.ph";
+        $email = "{$slug}@deped.gov.ph";
         $n = 2;
         while (isset($used[$email])) {
-            $email = "{$slug}{$n}@isat.edu.ph";
+            $email = "{$slug}{$n}@deped.gov.ph";
             $n++;
         }
         $used[$email] = true;

@@ -60,6 +60,12 @@ class AuthenticatedSessionController extends Controller
     {
         Auth::guard('web')->logout();
 
+        // Throw away the key that Inertia's encrypted history state was sealed
+        // with (config/inertia.php -> history.encrypt). Every page still sitting
+        // in the browser's history becomes undecryptable, so pressing Back has
+        // to re-request from the server instead of re-rendering a cached panel.
+        Inertia::clearHistory();
+
         $request->session()->invalidate();
 
         $request->session()->regenerateToken();

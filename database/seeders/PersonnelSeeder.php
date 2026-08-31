@@ -20,7 +20,7 @@ use Spatie\Permission\Models\Role;
  *   status defaults to "Permanent", school to "ISAT-MAIN", level is "JHS".
  *
  * Accounts are matched by generated email; existing passwords are never
- * overwritten. run() removes seeded @isat.edu.ph accounts no longer on the
+ * overwritten. run() removes seeded @deped.gov.ph accounts no longer on the
  * roster, but never touches anyone holding the admin role (MasterTeacherSeeder's
  * territory).
  */
@@ -30,7 +30,7 @@ class PersonnelSeeder extends Seeder
 
     /** name => email override */
     private array $emailOverrides = [
-        'Mary Ann Lopez Catindig' => 'principal@isat.edu.ph',
+        'Mary Ann Lopez Catindig' => 'principal@deped.gov.ph',
     ];
 
     private array $administrative = [
@@ -174,11 +174,12 @@ class PersonnelSeeder extends Seeder
             }
         }
 
-        // Drop seeded @isat.edu.ph accounts that fell off the roster
+        // Drop seeded @deped.gov.ph accounts that fell off the roster
         // (renamed people, removed staff). Never touch admin accounts - those
         // are Master Teachers owned by MasterTeacherSeeder. Non-seed accounts
-        // (any non-isat email) are untouched.
-        $stale = User::where('email', 'like', '%@isat.edu.ph')
+        // (any non-deped.gov.ph email, including legacy @isat.edu.ph rows) are
+        // untouched.
+        $stale = User::where('email', 'like', '%@deped.gov.ph')
             ->whereNotIn('email', $keepEmails)
             ->whereDoesntHave('roles', fn ($q) => $q->where('name', 'admin'))
             ->get();
@@ -196,13 +197,13 @@ class PersonnelSeeder extends Seeder
         ));
     }
 
-    /** Guarantee a unique @isat.edu.ph address within this run. */
+    /** Guarantee a unique @deped.gov.ph address within this run. */
     private function uniqueEmail(string $slug, array &$used): string
     {
-        $email = "{$slug}@isat.edu.ph";
+        $email = "{$slug}@deped.gov.ph";
         $n = 2;
         while (isset($used[$email])) {
-            $email = "{$slug}{$n}@isat.edu.ph";
+            $email = "{$slug}{$n}@deped.gov.ph";
             $n++;
         }
         $used[$email] = true;

@@ -34,7 +34,10 @@ return [
 
     'lifetime' => (int) env('SESSION_LIFETIME', 120),
 
-    'expire_on_close' => env('SESSION_EXPIRE_ON_CLOSE', false),
+    // Defaults to TRUE here (Laravel ships false): the session cookie is written
+    // without an Expires date, so closing the browser drops it and the next visit
+    // has to sign in again instead of resuming the old session.
+    'expire_on_close' => (bool) env('SESSION_EXPIRE_ON_CLOSE', true),
 
     /*
     |--------------------------------------------------------------------------

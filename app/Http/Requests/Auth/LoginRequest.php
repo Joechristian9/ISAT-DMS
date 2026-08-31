@@ -41,7 +41,10 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        // No "remember me": a remember_web_* cookie outlives the browser session
+        // and would silently re-authenticate on the next visit, defeating
+        // session.expire_on_close. Closing the browser must force a fresh login.
+        if (! Auth::attempt($this->only('email', 'password'))) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([

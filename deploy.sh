@@ -48,5 +48,5 @@ php artisan event:cache
 echo "==> Permissions"
 chmod -R 775 storage bootstrap/cache || true
 
-echo "==> Done. Open https://your-domain.com and log in as principal@isat.edu.ph"
+echo "==> Done. Open https://your-domain.com and log in as principal@deped.gov.ph"
 echo "   Remember to change every default password (all seeded accounts = 'password')."

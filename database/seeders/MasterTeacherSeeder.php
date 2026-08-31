@@ -50,7 +50,7 @@ class MasterTeacherSeeder extends Seeder
             $level = $row[5] ?? 'JHS';
 
             $fullName = $this->humanName($name);
-            $email = Str::slug($fullName, '.') . '@isat.edu.ph';
+            $email = Str::slug($fullName, '.') . '@deped.gov.ph';
 
             // MT I-II -> "MT1 - MT2"; MT III-V would be "MT3 - MT5".
             $range = str_contains($position, 'III')

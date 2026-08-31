@@ -140,11 +140,11 @@ the domain, then enable **"Force HTTPS"**. (Required for `SESSION_SECURE_COOKIE=
       Quick reset for the Principal, then use the User Management / Teacher
       Management pages for the rest:
       ```bash
-      php artisan tinker --execute="\App\Models\User::where('email','principal@isat.edu.ph')->update(['password'=>bcrypt('a-strong-password')]);"
+      php artisan tinker --execute="\App\Models\User::where('email','principal@deped.gov.ph')->update(['password'=>bcrypt('a-strong-password')]);"
       ```
 - [ ] Delete the test account: `php artisan tinker --execute="\App\Models\User::where('email','prince@gmail.com')->delete();"`
 - [ ] `storage/` and `bootstrap/cache/` are writable (775)
-- [ ] Log in as `principal@isat.edu.ph`, confirm the panels load
+- [ ] Log in as `principal@deped.gov.ph`, confirm the panels load
 - [ ] Upload a test MOV as a teacher, confirm the file saves under `storage/app/public`
 
 ---

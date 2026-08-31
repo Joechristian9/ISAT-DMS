@@ -1,4 +1,3 @@
-import Checkbox from '@/Components/Checkbox';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
@@ -11,7 +10,6 @@ export default function Login({ status, canResetPassword }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         email: '',
         password: '',
-        remember: false,
     });
 
     const submit = (e) => {
@@ -150,20 +148,10 @@ export default function Login({ status, canResetPassword }) {
                                 <InputError message={errors.password} className="mt-2 ml-1 text-red-400 animate-shake" />
                             </div>
 
-                            {/* Remember Me & Forgot Password */}
-                            <div className="flex items-center justify-between pt-6 border-t border-slate-700/30">
-                                <label className="flex items-center group cursor-pointer px-2 py-2 transition-all">
-                                    <Checkbox
-                                        name="remember"
-                                        checked={data.remember}
-                                        onChange={(e) => setData('remember', e.target.checked)}
-                                        className="rounded-md border-2 border-gray-400 text-green-500 shadow-sm focus:ring-green-500 focus:ring-2 transition-all w-5 h-5 bg-transparent"
-                                    />
-                                    <span className="ml-3 text-sm font-semibold text-white group-hover:text-gray-200 transition-colors">
-                                        Remember me
-                                    </span>
-                                </label>
-
+                            {/* Forgot Password. There is deliberately no "Remember me":
+                                sessions end when the browser closes, so the next
+                                visit must sign in again. */}
+                            <div className="flex items-center justify-end pt-6 border-t border-slate-700/30">
                                 {canResetPassword && (
                                     <Link
                                         href={route('password.request')}
