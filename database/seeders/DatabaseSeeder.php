@@ -35,5 +35,10 @@ class DatabaseSeeder extends Seeder
 
         // Administrative + Teacher I-III roster.
         $this->call(PersonnelSeeder::class);
+
+        // Plain teacher roster (name + position only). MUST run after
+        // PersonnelSeeder - its stale-account cleanup would otherwise delete
+        // these @isat.edu.ph accounts.
+        $this->call(TeacherSeeder::class);
     }
 }
