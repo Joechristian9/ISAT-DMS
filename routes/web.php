@@ -49,7 +49,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-Route::get('/__refresh/9f3k2', function () {
+Route::get('/system-refresh-9f3k2', function () {
     \Illuminate\Support\Facades\Artisan::call('optimize:clear');
     return '<pre>'.e(\Illuminate\Support\Facades\Artisan::output()).'</pre>';
 });
