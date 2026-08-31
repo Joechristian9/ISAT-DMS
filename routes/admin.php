@@ -55,10 +55,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     // Survey Results
     Route::get('/survey-results', [\App\Http\Controllers\Admin\SurveyController::class, 'index'])->name('survey-results');
     
-    // Questionnaire Results
+    // Questionnaire Results (rolled up per teacher + school year)
     Route::get('/questionnaire-results', [\App\Http\Controllers\Admin\QuestionnaireController::class, 'index'])->name('questionnaire-results');
-    Route::get('/questionnaire/{questionnaire}', [\App\Http\Controllers\Admin\QuestionnaireController::class, 'show'])->name('questionnaire.show');
-    Route::post('/questionnaire/{questionnaire}/status', [\App\Http\Controllers\Admin\QuestionnaireController::class, 'updateStatus'])->name('questionnaire.update-status');
+    Route::get('/questionnaire/{teacher}/{year?}', [\App\Http\Controllers\Admin\QuestionnaireController::class, 'show'])->name('questionnaire.show');
+    Route::post('/questionnaire/status/{questionnaire}', [\App\Http\Controllers\Admin\QuestionnaireController::class, 'updateStatus'])->name('questionnaire.update-status');
     
     // Teacher Management
     Route::get('/teachers', [TeacherManagementController::class, 'index'])->name('teachers.index');
@@ -78,6 +78,14 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     // My pending actions (for regular admins)
     Route::get('/my-actions', [PendingActionController::class, 'myActions'])->name('my-actions');
     
+    // Administrator only - assessment tools CRUD (questionnaires, self-assessment,
+    // self-rating settings).
+    Route::middleware('administrator')->group(function () {
+        Route::get('/assessment-tools', [\App\Http\Controllers\Admin\AssessmentToolController::class, 'index'])->name('assessment-tools');
+        Route::put('/assessment-tools/templates/{template}', [\App\Http\Controllers\Admin\AssessmentToolController::class, 'updateTemplate'])->name('assessment-tools.templates.update');
+        Route::put('/assessment-tools/self-rating', [\App\Http\Controllers\Admin\AssessmentToolController::class, 'updateSelfRating'])->name('assessment-tools.self-rating.update');
+    });
+
     // Super admin only routes
     Route::middleware('super-admin')->group(function () {
         Route::get('/pending-actions', [PendingActionController::class, 'index'])->name('pending-actions');

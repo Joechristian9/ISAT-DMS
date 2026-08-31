@@ -12,6 +12,7 @@ export default function TeacherIpcrf({
     selfRatings,
     selfRatingTotalWeight = 5,
     selfRatingWeightPerKra,
+    selfRatingActive = true,
     schoolYear,
     user,
     noActiveConfig,
@@ -587,7 +588,7 @@ export default function TeacherIpcrf({
                     </div>
 
                     {/* Self-Rating upload for the current KRA */}
-                    {currentKra && (
+                    {currentKra && selfRatingActive && (
                         <div className="mt-6 bg-white rounded-2xl shadow-lg border-2 border-amber-200 overflow-hidden">
                             <div className="bg-gradient-to-r from-amber-50 to-yellow-50 px-6 py-4 border-b-2 border-amber-200">
                                 <div className="flex flex-wrap items-center justify-between gap-4">
@@ -598,7 +599,7 @@ export default function TeacherIpcrf({
                                         <div>
                                             <div className="flex items-center gap-2">
                                                 <h4 className="text-lg font-bold text-gray-900">
-                                                    Self-Rating for KRA {currentKraIndex + 1}
+                                                    Self-Rating for KRA's
                                                 </h4>
                                                 <span className="inline-flex items-center rounded-full bg-amber-200 px-2.5 py-0.5 text-xs font-bold text-amber-900">
                                                     {selfRatingWeight.toFixed(2)}%
@@ -734,6 +735,51 @@ export default function TeacherIpcrf({
                             </div>
                         </div>
                     )}
+
+                    {/* SHS Performance & Challenges Questionnaire Call-to-Action
+                        (independent of MOV uploads - always available). */}
+                    <div className="mt-8 bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 rounded-2xl shadow-2xl p-8 border-2 border-emerald-300 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-400/10 rounded-full blur-3xl"></div>
+                            <div className="absolute bottom-0 left-0 w-48 h-48 bg-cyan-400/10 rounded-full blur-2xl"></div>
+
+                            <div className="relative">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-4 mb-4">
+                                            <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-xl">
+                                                <ClipboardCheck className="h-8 w-8 text-white" />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-3xl font-extrabold text-gray-900 mb-2">SHS Performance &amp; Challenges</h3>
+                                                <p className="text-lg text-gray-700">Senior High School teacher self-assessment questionnaire</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-start gap-3 p-5 bg-white/80 backdrop-blur rounded-xl border-2 border-emerald-200">
+                                            <Info className="h-6 w-6 text-emerald-600 flex-shrink-0 mt-0.5" />
+                                            <div className="text-base text-emerald-900">
+                                                <p className="font-semibold mb-2">What's inside?</p>
+                                                <ul className="list-disc list-inside space-y-1 text-emerald-800">
+                                                    <li>Part I – Profile and trainings attended (last 3 years)</li>
+                                                    <li>Part II – Performance rating across the 5 KRAs (14 items)</li>
+                                                    <li>Part III – Challenges encountered across the 5 KRAs (60 items)</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="ml-8">
+                                        <a
+                                            href={route('teacher.shs-questionnaire')}
+                                            className="inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-700 hover:via-teal-700 hover:to-cyan-700 text-white text-xl font-bold rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-200 hover:scale-105"
+                                        >
+                                            <ClipboardCheck className="h-7 w-7" />
+                                            Start
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
                     </>
                     )}

@@ -168,6 +168,47 @@ class DashboardController extends Controller
                 ->count(),
         ];
 
+        // ---- Trends: each stat card vs. its value 30 days ago ----
+        // "Previous" = how things looked before $cut, so the delta reflects what
+        // actually changed as users submit MOVs, get rated, resolve actions, etc.
+        $cut = Carbon::now()->subDays(30);
+
+        $prevUsers = User::where('created_at', '<', $cut)->count();
+        $prevTeachers = User::role('teacher')->where('created_at', '<', $cut)->count();
+        $prevSubmitters = (int) $yearScope(TeacherSubmission::query())
+            ->where('created_at', '<', $cut)
+            ->distinct('teacher_id')->count('teacher_id');
+        $prevPendingReviews = $yearScope(TeacherSubmission::query())
+            ->where('status', 'pending')->where('created_at', '<', $cut)->count();
+        $prevReviewed = $yearScope(TeacherSubmission::query())
+            ->where('status', 'reviewed')->where('reviewed_at', '<', $cut)->count();
+        $prevAvgRating = (float) ($ratingYearScope(IpcrfRating::query())
+            ->where('created_at', '<', $cut)->avg('numerical_rating') ?? 0);
+        $prevPendingActions = PendingAction::where('status', 'pending')
+            ->where('created_at', '<', $cut)->count();
+        $prevAlerts = TeacherSubmission::whereNull('reviewed_at')->where('created_at', '<', $cut)->count()
+            + PendingAction::where('status', 'pending')->where('created_at', '<', $cut)->count();
+
+        $currentAlerts = $systemAlerts['unreviewed_submissions'] + $systemAlerts['pending_approvals'];
+
+        $trends = [
+            // more == better: green on increase
+            'total_users' => $this->percentTrend($stats['total_users'], $prevUsers, true),
+            'total_teachers' => $this->percentTrend($stats['total_teachers'], $prevTeachers, true),
+            'ipcrf_submissions' => $this->percentTrend($ipcrfStats['total_submissions'], $prevSubmitters, true),
+            'completed_reviews' => $this->percentTrend($ipcrfStats['reviewed_submissions'], $prevReviewed, true),
+            'average_rating' => $this->deltaTrend(
+                round((float) $ipcrfStats['average_rating'], 2),
+                round($prevAvgRating, 2),
+                2,
+                true,
+            ),
+            // fewer == better: green on decrease
+            'pending_reviews' => $this->countTrend($ipcrfStats['pending_submissions'], $prevPendingReviews, false),
+            'pending_actions' => $this->countTrend($pendingActions['total_pending'], $prevPendingActions, false),
+            'system_alerts' => $this->countTrend($currentAlerts, $prevAlerts, false),
+        ];
+
         return Inertia::render('Admin/Dashboard', [
             'stats' => $stats,
             'ipcrfStats' => $ipcrfStats,
@@ -182,7 +223,62 @@ class DashboardController extends Controller
             'statusDistribution' => $statusDistribution,
             'topRatedTeachers' => $topRatedTeachers,
             'systemAlerts' => $systemAlerts,
+            'trends' => $trends,
             'isSuperAdmin' => auth()->user()->hasRole('super-admin'),
         ]);
+    }
+
+    /**
+     * Percentage change vs. a previous value.
+     *
+     * @param  bool  $moreIsBetter  whether an increase should read as positive
+     * @return array{label:string, positive:bool|null}
+     */
+    private function percentTrend(int|float $current, int|float $previous, bool $moreIsBetter): array
+    {
+        $diff = $current - $previous;
+
+        if ($previous <= 0) {
+            $pct = $current > 0 ? 100 : 0;
+        } else {
+            $pct = (int) round($diff / $previous * 100);
+        }
+
+        return [
+            'label' => sprintf('%s%d%%', $pct > 0 ? '+' : '', $pct),
+            'positive' => $this->sentiment($diff, $moreIsBetter),
+        ];
+    }
+
+    /** Absolute count change, rendered as "+N" / "-N". */
+    private function countTrend(int $current, int $previous, bool $moreIsBetter): array
+    {
+        $diff = $current - $previous;
+
+        return [
+            'label' => sprintf('%s%d', $diff > 0 ? '+' : '', $diff),
+            'positive' => $this->sentiment($diff, $moreIsBetter),
+        ];
+    }
+
+    /** Absolute change for a decimal metric (e.g. average rating). */
+    private function deltaTrend(float $current, float $previous, int $decimals, bool $moreIsBetter): array
+    {
+        $diff = round($current - $previous, $decimals);
+
+        return [
+            'label' => sprintf('%s%s', $diff > 0 ? '+' : '', number_format($diff, $decimals)),
+            'positive' => $this->sentiment($diff, $moreIsBetter),
+        ];
+    }
+
+    /** true = good change, false = bad change, null = no change. */
+    private function sentiment(int|float $diff, bool $moreIsBetter): ?bool
+    {
+        if ($diff == 0) {
+            return null;
+        }
+
+        return ($diff > 0) === $moreIsBetter;
     }
 }

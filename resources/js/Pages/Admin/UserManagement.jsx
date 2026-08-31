@@ -44,7 +44,7 @@ import { Search, UserPlus, Pencil, Trash2, KeyRound, ShieldCheck } from 'lucide-
 
 const emptyForm = { name: '', email: '', password: '', role: 'admin', is_active: true };
 
-export default function UserManagement({ users, roleOptions, filters, flash }) {
+export default function UserManagement({ users, roleOptions, canManagePrincipal = false, filters, flash }) {
     const [search, setSearch] = useState(filters?.search || '');
     const [roleFilter, setRoleFilter] = useState(filters?.role || '');
 
@@ -181,7 +181,7 @@ export default function UserManagement({ users, roleOptions, filters, flash }) {
                                             <ShieldCheck className="h-6 w-6 text-green-600" />
                                             User Management
                                         </h2>
-                                        <p className="text-sm text-gray-600">Principal and Master Teacher accounts</p>
+                                        <p className="text-sm text-gray-600">Administrative and Master Teacher accounts</p>
                                     </div>
                                     <Button onClick={openCreate} className="bg-green-600 hover:bg-green-700">
                                         <UserPlus className="h-4 w-4 mr-2" />
@@ -318,7 +318,11 @@ export default function UserManagement({ users, roleOptions, filters, flash }) {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Add User</DialogTitle>
-                        <DialogDescription>Create a Principal or Master Teacher account.</DialogDescription>
+                        <DialogDescription>
+                            {canManagePrincipal
+                                ? 'Create an Administrative or Master Teacher account.'
+                                : 'Create a Master Teacher account. Only the Administrator can add Administrative accounts.'}
+                        </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-3">
                         <div>
@@ -370,14 +374,21 @@ export default function UserManagement({ users, roleOptions, filters, flash }) {
                         </div>
                         <div>
                             <Label htmlFor="e-role">Role</Label>
-                            <Select value={form.role} onValueChange={(value) => setForm({ ...form, role: value })}>
-                                <SelectTrigger id="e-role"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    {roleOptions.map((opt) => (
-                                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            {!canManagePrincipal && selected?.role === 'super-admin' ? (
+                                <Input id="e-role" value={selected?.role_label || 'Administrative'} readOnly className="bg-gray-50" />
+                            ) : (
+                                <Select value={form.role} onValueChange={(value) => setForm({ ...form, role: value })}>
+                                    <SelectTrigger id="e-role"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        {roleOptions.map((opt) => (
+                                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
+                            {!canManagePrincipal && (
+                                <p className="mt-1 text-xs text-gray-400">Only the Administrator can change accounts to Administrative.</p>
+                            )}
                         </div>
                         <label className="flex items-center gap-2 text-sm">
                             <input

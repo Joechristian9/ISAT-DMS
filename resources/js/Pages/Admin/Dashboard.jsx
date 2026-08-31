@@ -72,7 +72,8 @@ export default function AdminDashboard({
     monthlySubmissions,
     statusDistribution,
     topRatedTeachers,
-    systemAlerts
+    systemAlerts,
+    trends = {}
 }) {
     const [dateFilter, setDateFilter] = useState('7days');
 
@@ -490,14 +491,16 @@ export default function AdminDashboard({
         }
     };
 
-    // Analytics Cards Data
+    // Analytics Cards Data. `trend` values are computed server-side (current
+    // value vs. 30 days ago) so every submission / review / action moves them.
+    const noTrend = { label: '0', positive: null };
     const analyticsCards = [
         {
             title: "Total Users",
             value: stats?.total_users || 0,
             icon: Users,
             color: "bg-blue-500",
-            trend: "+12%",
+            trend: trends?.total_users || noTrend,
             description: "All system users"
         },
         {
@@ -505,7 +508,7 @@ export default function AdminDashboard({
             value: stats?.total_teachers || 0,
             icon: GraduationCap,
             color: "bg-green-500",
-            trend: "+8%",
+            trend: trends?.total_teachers || noTrend,
             description: "Active teachers"
         },
         {
@@ -513,7 +516,7 @@ export default function AdminDashboard({
             value: ipcrfStats?.total_submissions || 0,
             icon: FileText,
             color: "bg-purple-500",
-            trend: "+15%",
+            trend: trends?.ipcrf_submissions || noTrend,
             description: `Teachers submitted of ${stats?.total_teachers || 0} · SY ${ipcrfYear || '—'}`
         },
         {
@@ -521,7 +524,7 @@ export default function AdminDashboard({
             value: ipcrfStats?.pending_submissions || 0,
             icon: Clock,
             color: "bg-orange-500",
-            trend: "-5%",
+            trend: trends?.pending_reviews || noTrend,
             description: "Awaiting review"
         },
         {
@@ -529,7 +532,7 @@ export default function AdminDashboard({
             value: ipcrfStats?.reviewed_submissions || 0,
             icon: CheckCircle,
             color: "bg-teal-500",
-            trend: "+20%",
+            trend: trends?.completed_reviews || noTrend,
             description: "Reviewed submissions"
         },
         {
@@ -537,7 +540,7 @@ export default function AdminDashboard({
             value: ipcrfStats?.average_rating ? Number(ipcrfStats.average_rating).toFixed(2) : '0.00',
             icon: Star,
             color: "bg-yellow-500",
-            trend: "+0.3",
+            trend: trends?.average_rating || noTrend,
             description: "Overall performance"
         },
         {
@@ -545,7 +548,7 @@ export default function AdminDashboard({
             value: pendingActions?.total_pending || 0,
             icon: AlertCircle,
             color: "bg-red-500",
-            trend: "-3",
+            trend: trends?.pending_actions || noTrend,
             description: "Requires attention"
         },
         {
@@ -553,7 +556,7 @@ export default function AdminDashboard({
             value: (systemAlerts?.unreviewed_submissions || 0) + (systemAlerts?.pending_approvals || 0),
             icon: Activity,
             color: "bg-pink-500",
-            trend: "0",
+            trend: trends?.system_alerts || noTrend,
             description: "Active alerts"
         }
     ];
@@ -655,12 +658,15 @@ export default function AdminDashboard({
                                                     <div className={`${card.color} p-3 rounded-lg`}>
                                                         <Icon className="h-6 w-6 text-white" />
                                                     </div>
-                                                    <span className={`text-sm font-semibold ${
-                                                        card.trend.startsWith('+') ? 'text-green-600' : 
-                                                        card.trend.startsWith('-') ? 'text-red-600' : 
-                                                        'text-gray-600'
-                                                    }`}>
-                                                        {card.trend}
+                                                    <span
+                                                        title="Change vs. 30 days ago"
+                                                        className={`text-sm font-semibold ${
+                                                            card.trend.positive === true ? 'text-green-600' :
+                                                            card.trend.positive === false ? 'text-red-600' :
+                                                            'text-gray-600'
+                                                        }`}
+                                                    >
+                                                        {card.trend.label}
                                                     </span>
                                                 </div>
                                                 <h3 className="text-2xl font-bold text-gray-900 mb-1">

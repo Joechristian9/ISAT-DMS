@@ -6,7 +6,7 @@ import {
 
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
-import { roleLabel, isPrincipal, hasRole } from "@/lib/roleLabels"
+import { roleLabel, isPrincipal, isAdministrator, hasRole } from "@/lib/roleLabels"
 import {
   Sidebar,
   SidebarContent,
@@ -18,11 +18,13 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 
-// Base admin navigation. Items with `superAdminOnly` are filtered by role below.
+// Base admin navigation. `superAdminOnly` / `administratorOnly` items are
+// filtered by role below.
 const baseItems = [
   { title: "Dashboard", url: route('admin.dashboard') },
   { title: "Teacher Management", url: route('admin.teachers.index') },
   { title: "User Management", url: route('admin.users.index'), superAdminOnly: true },
+  { title: "Assessment Tools", url: route('admin.assessment-tools'), administratorOnly: true },
   { title: "IPCRF Submissions", url: route('admin.ipcrf.submissions') },
   { title: "Signed IPCRF", url: route('admin.signed-ipcrf') },
   { title: "IPCRF History", url: route('admin.ipcrf-history') },
@@ -37,10 +39,13 @@ export function AppSidebar({
   const { auth } = usePage().props
   const roles = auth?.roles ?? auth?.user?.roles
   const principal = isPrincipal(roles)
+  const administrator = isAdministrator(roles, auth?.user)
   // A Master Teacher holds both admin + teacher roles.
   const alsoTeacher = hasRole(roles, 'teacher')
 
-  const items = baseItems.filter((item) => !item.superAdminOnly || principal)
+  const items = baseItems.filter((item) =>
+    (!item.superAdminOnly || principal) && (!item.administratorOnly || administrator)
+  )
   if (alsoTeacher) {
     items.push({ title: "→ My Teacher Panel", url: route('teacher.dashboard') })
   }

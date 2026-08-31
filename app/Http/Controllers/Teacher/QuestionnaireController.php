@@ -27,10 +27,17 @@ class QuestionnaireController extends Controller
             ]
         );
 
+        // Questions + scale come from the editable "flat" template when present;
+        // Teacher/Questionnaire.jsx falls back to its built-in list otherwise.
+        $template = \App\Models\QuestionnaireTemplate::where('key', \Database\Seeders\EtracesSurveySeeder::KEY)
+            ->where('is_active', true)
+            ->first();
+
         return Inertia::render('Teacher/Questionnaire', [
             'questionnaire' => $questionnaire,
             'schoolYear' => $schoolYear,
             'user' => auth()->user(),
+            'template' => $template,
         ]);
     }
 

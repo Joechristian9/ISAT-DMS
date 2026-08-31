@@ -82,13 +82,8 @@ class User extends Authenticatable
         if ($this->hasRole('super-admin')) {
             // A dual-role account (super-admin + teacher, e.g. the Administrator)
             // is labelled by its division position_title rather than "Principal".
-            if ($this->hasRole('teacher')) {
-                $division = json_decode((string) $this->division, true);
-                $title = is_array($division) ? ($division['position_title'] ?? null) : null;
-
-                if ($title && ! str_contains($title, 'Principal')) {
-                    return $title;
-                }
+            if ($this->isAdministrator()) {
+                return $this->administratorTitle() ?? 'Administrator';
             }
 
             return 'Principal';
@@ -101,6 +96,32 @@ class User extends Authenticatable
         }
 
         return 'User';
+    }
+
+    /**
+     * The Administrator: a dual-role super-admin + teacher whose division
+     * position_title is something other than the principalship (e.g.
+     * "Administrator"). This account may manage assessment tools and is the
+     * only account allowed to create Principal accounts.
+     */
+    public function isAdministrator(): bool
+    {
+        return $this->hasRole('super-admin')
+            && $this->hasRole('teacher')
+            && $this->administratorTitle() !== null;
+    }
+
+    /** The non-principal position_title for a dual-role super-admin, else null. */
+    private function administratorTitle(): ?string
+    {
+        if (! $this->hasRole('super-admin') || ! $this->hasRole('teacher')) {
+            return null;
+        }
+
+        $division = json_decode((string) $this->division, true);
+        $title = is_array($division) ? ($division['position_title'] ?? null) : null;
+
+        return ($title && ! str_contains($title, 'Principal')) ? $title : null;
     }
 
     /**

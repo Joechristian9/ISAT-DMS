@@ -12,8 +12,12 @@ use Inertia\Inertia;
 use Spatie\Permission\Models\Role;
 
 /**
- * Manage staff accounts - Principal (super-admin) and Master Teacher (admin).
- * Super-admin only; wired up in routes/admin.php under the super-admin group.
+ * Manage staff accounts - Administrative (super-admin) and Master Teacher
+ * (admin). Super-admin only; wired up in routes/admin.php under the super-admin
+ * group.
+ *
+ * Creating an Administrative (super-admin) account is reserved for the
+ * Administrator - a plain Principal may only create Master Teacher accounts.
  */
 class UserManagementController extends Controller
 {
@@ -22,7 +26,7 @@ class UserManagementController extends Controller
 
     /** Wording shown in the UI for each spatie role key. */
     private const ROLE_LABELS = [
-        'super-admin' => 'Principal',
+        'super-admin' => 'Administrative',
         'admin' => 'Master Teacher',
     ];
 
@@ -46,24 +50,31 @@ class UserManagementController extends Controller
             $query->whereHas('roles', fn ($q) => $q->where('name', $roleFilter));
         }
 
+        $canManagePrincipal = $request->user()->isAdministrator();
+
         $users = $query->orderBy('name')->paginate(10)->withQueryString()
             ->through(fn (User $user) => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
                 'role' => $user->roles->pluck('name')->first(),
-                'role_label' => $user->roleLabel(),
+                'role_label' => $this->managedLabel($user),
                 'is_active' => (bool) ($user->is_active ?? true),
                 'created_at' => $user->created_at?->toDateString(),
                 'is_self' => $user->id === $request->user()->id,
             ]);
 
+        // A plain Principal can only create Master Teacher accounts; the
+        // Administrator can also create Administrative (super-admin) accounts.
+        $roleOptions = collect(self::MANAGED_ROLES)
+            ->when(! $canManagePrincipal, fn ($roles) => $roles->reject(fn ($r) => $r === 'super-admin'))
+            ->map(fn ($key) => ['value' => $key, 'label' => self::ROLE_LABELS[$key]])
+            ->values();
+
         return Inertia::render('Admin/UserManagement', [
             'users' => $users,
-            'roleOptions' => collect(self::MANAGED_ROLES)->map(fn ($key) => [
-                'value' => $key,
-                'label' => self::ROLE_LABELS[$key],
-            ])->values(),
+            'roleOptions' => $roleOptions,
+            'canManagePrincipal' => $canManagePrincipal,
             'filters' => [
                 'search' => $search,
                 'role' => $roleFilter,
@@ -75,6 +86,18 @@ class UserManagementController extends Controller
         ]);
     }
 
+    /** UI label for a managed account (Administrator kept distinct). */
+    private function managedLabel(User $user): string
+    {
+        if ($user->isAdministrator()) {
+            return $user->roleLabel(); // "Administrator"
+        }
+
+        return $user->hasRole('super-admin')
+            ? self::ROLE_LABELS['super-admin']
+            : self::ROLE_LABELS['admin'];
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -83,6 +106,8 @@ class UserManagementController extends Controller
             'password' => 'required|string|min:8',
             'role' => ['required', Rule::in(self::MANAGED_ROLES)],
         ]);
+
+        $this->assertMayAssignRole($request, $validated['role']);
 
         Role::firstOrCreate(['name' => $validated['role']]);
 
@@ -108,7 +133,12 @@ class UserManagementController extends Controller
             'is_active' => 'boolean',
         ]);
 
-        // Never let the last Principal be demoted or locked out.
+        // Only the Administrator may hand out the Administrative (super-admin) role.
+        if ($validated['role'] === 'super-admin' && ! $user->hasRole('super-admin')) {
+            $this->assertMayAssignRole($request, 'super-admin');
+        }
+
+        // Never let the last Administrative account be demoted or locked out.
         if ($user->hasRole('super-admin') && $validated['role'] !== 'super-admin') {
             $this->assertNotLastSuperAdmin($user, 'demote');
         }
@@ -153,6 +183,19 @@ class UserManagementController extends Controller
         $user->delete();
 
         return back()->with('success', "{$name} deleted.");
+    }
+
+    /**
+     * Creating / assigning the Administrative (super-admin) role is reserved for
+     * the Administrator. Everyone managing this page may assign Master Teacher.
+     */
+    private function assertMayAssignRole(Request $request, string $role): void
+    {
+        if ($role === 'super-admin' && ! $request->user()->isAdministrator()) {
+            throw ValidationException::withMessages([
+                'role' => 'Only the Administrator can create or assign an Administrative account.',
+            ]);
+        }
     }
 
     /** Only super-admin / admin accounts are editable through this page. */

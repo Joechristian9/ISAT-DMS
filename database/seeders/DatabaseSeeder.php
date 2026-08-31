@@ -40,5 +40,11 @@ class DatabaseSeeder extends Seeder
         // PersonnelSeeder - its stale-account cleanup would otherwise delete
         // these @isat.edu.ph accounts.
         $this->call(TeacherSeeder::class);
+
+        // SHS "Performance Rating & Challenges Encountered" questionnaire template.
+        $this->call(ShsQuestionnaireSeeder::class);
+
+        // "Ready for Self-Assessment" e-TRACES satisfaction survey template.
+        $this->call(EtracesSurveySeeder::class);
     }
 }

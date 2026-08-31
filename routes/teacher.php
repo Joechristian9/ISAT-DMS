@@ -27,4 +27,8 @@ Route::prefix('teacher')->name('teacher.')->middleware(['auth', 'teacher'])->gro
     // Questionnaire Routes
     Route::get('/questionnaire', [\App\Http\Controllers\Teacher\QuestionnaireController::class, 'index'])->name('questionnaire');
     Route::post('/questionnaire', [\App\Http\Controllers\Teacher\QuestionnaireController::class, 'store'])->name('questionnaire.store');
+
+    // SHS Performance & Challenges Questionnaire
+    Route::get('/shs-questionnaire', [\App\Http\Controllers\Teacher\ShsQuestionnaireController::class, 'index'])->name('shs-questionnaire');
+    Route::post('/shs-questionnaire', [\App\Http\Controllers\Teacher\ShsQuestionnaireController::class, 'store'])->name('shs-questionnaire.store');
 });

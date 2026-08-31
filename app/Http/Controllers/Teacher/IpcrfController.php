@@ -110,8 +110,11 @@ class IpcrfController extends Controller
             'kras' => $kras,
             'submissions' => $submissions,
             'selfRatings' => $selfRatings,
-            'selfRatingTotalWeight' => KraSelfRating::TOTAL_WEIGHT,
-            'selfRatingWeightPerKra' => KraSelfRating::weightPerKra($kras->count()),
+            // When the Administrator switches self-rating off, it carries no
+            // weight and objectives account for the full 100%.
+            'selfRatingTotalWeight' => KraSelfRating::isActive() ? KraSelfRating::totalWeight() : 0,
+            'selfRatingWeightPerKra' => KraSelfRating::isActive() ? KraSelfRating::weightPerKra($kras->count()) : 0,
+            'selfRatingActive' => KraSelfRating::isActive(),
             'schoolYear' => $currentYear,
             'user' => auth()->user(),
             'noActiveConfig' => false,

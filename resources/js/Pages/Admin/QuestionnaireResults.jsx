@@ -38,19 +38,16 @@ export default function QuestionnaireResults({ questionnaires, schoolYears, filt
             draft: 'bg-gray-200 text-gray-800',
             submitted: 'bg-blue-200 text-blue-800',
             reviewed: 'bg-green-200 text-green-800',
+            uploads_only: 'bg-amber-200 text-amber-900',
         };
-        
         const labels = {
             draft: 'Draft',
             submitted: 'Submitted',
             reviewed: 'Reviewed',
+            uploads_only: 'Uploads only',
         };
 
-        return (
-            <Badge className={variants[status]}>
-                {labels[status]}
-            </Badge>
-        );
+        return <Badge className={variants[status] || 'bg-gray-200 text-gray-800'}>{labels[status] || status}</Badge>;
     };
 
     return (
@@ -103,6 +100,16 @@ export default function QuestionnaireResults({ questionnaires, schoolYears, filt
                             <p className="text-3xl font-bold text-green-600">{stats.submitted}</p>
                         </div>
 
+                        <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-amber-200">
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                                    <Award className="h-5 w-5 text-amber-600" />
+                                </div>
+                                <p className="text-sm font-semibold text-gray-600">Self-Rating Uploads</p>
+                            </div>
+                            <p className="text-3xl font-bold text-amber-600">{stats.self_rating_uploads ?? 0}</p>
+                        </div>
+
                         <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-purple-200">
                             <div className="flex items-center gap-3 mb-2">
                                 <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -112,18 +119,6 @@ export default function QuestionnaireResults({ questionnaires, schoolYears, filt
                             </div>
                             <p className="text-3xl font-bold text-purple-600">
                                 {stats.average_years_of_service ? Number(stats.average_years_of_service).toFixed(1) : 'N/A'}
-                            </p>
-                        </div>
-
-                        <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-indigo-200">
-                            <div className="flex items-center gap-3 mb-2">
-                                <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-                                    <Award className="h-5 w-5 text-indigo-600" />
-                                </div>
-                                <p className="text-sm font-semibold text-gray-600">Average Age</p>
-                            </div>
-                            <p className="text-3xl font-bold text-indigo-600">
-                                {stats.average_age ? Number(stats.average_age).toFixed(1) : 'N/A'}
                             </p>
                         </div>
                     </div>
@@ -243,16 +238,13 @@ export default function QuestionnaireResults({ questionnaires, schoolYears, filt
                                                 School Year
                                             </th>
                                             <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                                                Position
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                                                Years of Service
+                                                Submissions
                                             </th>
                                             <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                                                 Status
                                             </th>
                                             <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                                                Submitted
+                                                Last Activity
                                             </th>
                                             <th className="px-6 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
                                                 Actions
@@ -260,48 +252,36 @@ export default function QuestionnaireResults({ questionnaires, schoolYears, filt
                                         </tr>
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-200">
-                                        {questionnaires.map((questionnaire) => (
-                                            <tr key={questionnaire.id} className="hover:bg-gray-50 transition-colors">
+                                        {questionnaires.map((q) => (
+                                            <tr key={q.key} className="hover:bg-gray-50 transition-colors">
                                                 <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="flex items-center">
-                                                        <div>
-                                                            <div className="text-sm font-semibold text-gray-900">
-                                                                {questionnaire.teacher.name}
-                                                            </div>
-                                                            <div className="text-sm text-gray-500">
-                                                                {questionnaire.teacher.email}
-                                                            </div>
-                                                        </div>
+                                                    <div className="text-sm font-semibold text-gray-900">{q.teacher.name}</div>
+                                                    <div className="text-sm text-gray-500">{q.teacher.email}</div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="text-sm text-gray-900">{q.school_year}</div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {q.has_survey && <Badge className="bg-yellow-100 text-yellow-800">Self-Assessment</Badge>}
+                                                        {q.has_shs && <Badge className="bg-emerald-100 text-emerald-800">SHS Performance</Badge>}
+                                                        {q.self_rating_count > 0 && (
+                                                            <Badge className="bg-amber-100 text-amber-800">Self-Rating ×{q.self_rating_count}</Badge>
+                                                        )}
+                                                        {!q.has_survey && !q.has_shs && q.self_rating_count === 0 && (
+                                                            <span className="text-sm text-gray-400">—</span>
+                                                        )}
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="text-sm text-gray-900">{questionnaire.school_year}</div>
-                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(q.status)}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div className="text-sm text-gray-900">
-                                                        {questionnaire.teaching_position || 'N/A'}
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="text-sm text-gray-900">
-                                                        {questionnaire.years_of_service ? `${questionnaire.years_of_service} years` : 'N/A'}
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    {getStatusBadge(questionnaire.status)}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="text-sm text-gray-900">
-                                                        {questionnaire.submitted_at 
-                                                            ? new Date(questionnaire.submitted_at).toLocaleDateString()
-                                                            : questionnaire.status === 'submitted' || questionnaire.status === 'reviewed'
-                                                            ? new Date(questionnaire.updated_at).toLocaleDateString()
-                                                            : 'Not submitted'}
+                                                        {q.last_activity ? new Date(q.last_activity).toLocaleString() : '—'}
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-center">
                                                     <Link
-                                                        href={route('admin.questionnaire.show', questionnaire.id)}
+                                                        href={route('admin.questionnaire.show', [q.teacher.id, q.school_year])}
                                                         className="inline-flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
                                                     >
                                                         <Eye className="h-4 w-4" />

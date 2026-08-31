@@ -8,7 +8,7 @@ import 'react-toastify/dist/ReactToastify.css';
 
 const QUESTIONS_PER_STEP = 10;
 
-export default function Questionnaire({ questionnaire, schoolYear, user }) {
+export default function Questionnaire({ questionnaire, schoolYear, user, template }) {
     const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
     const [step, setStep] = useState(0);
     const confirmRef = useRef(null);
@@ -27,8 +27,9 @@ export default function Questionnaire({ questionnaire, schoolYear, user }) {
         status: 'draft',
     });
 
-    // e-TRACES DMS Satisfaction Survey Questions (30 items)
-    const surveyQuestions = [
+    // e-TRACES DMS Satisfaction Survey Questions (30 items). Used only when the
+    // editable "flat" template hasn't been seeded yet - see below.
+    const DEFAULT_QUESTIONS = [
         "This DMS platform has much that is of interest to me.",
         "It is easy to move around the platform.",
         "I can quickly find what I want on e-TRACES.",
@@ -61,13 +62,24 @@ export default function Questionnaire({ questionnaire, schoolYear, user }) {
         "e-TRACES help rater and ratees in PMES collaboration and feedbacking."
     ];
 
-    const ratingScale = [
+    const DEFAULT_SCALE = [
         { value: 5, label: 'VS', description: 'Very Satisfied' },
         { value: 4, label: 'S', description: 'Satisfied' },
         { value: 3, label: 'N', description: 'Neither' },
         { value: 2, label: 'DS', description: 'Dissatisfied' },
         { value: 1, label: 'VD', description: 'Very Dissatisfied' }
     ];
+
+    // Prefer the Administrator-editable template; fall back to the defaults.
+    const tplItems = template?.structure?.items;
+    const tplScale = template?.structure?.scale;
+    const surveyQuestions = (Array.isArray(tplItems) && tplItems.length)
+        ? tplItems.map((i) => i.text)
+        : DEFAULT_QUESTIONS;
+    const ratingScale = (Array.isArray(tplScale) && tplScale.length)
+        ? tplScale.map((s) => ({ value: s.value, label: s.label, description: s.description }))
+        : DEFAULT_SCALE;
+    const surveyInstructions = template?.structure?.instructions;
 
     const handleRatingChange = (questionIndex, rating) => {
         setData('responses', {
@@ -335,12 +347,18 @@ export default function Questionnaire({ questionnaire, schoolYear, user }) {
 
                     {/* Instructions */}
                     <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border-2 border-gray-200">
-                        <p className="text-gray-700 mb-4">
-                            A series of statements are listed below. Each one describes a situation which may be related to a certain extent to what you do or feel. Mark with a <span className="font-bold">✓</span> the option that best applies to how often you engaged in the mentioned activity.
-                        </p>
-                        <p className="text-gray-700">
-                            It is important for you to know that this questionnaire is completely independent and that there is not a correct or incorrect answer. The information you provide will be kept confidentially. Thank you very much.
-                        </p>
+                        {surveyInstructions ? (
+                            <p className="text-gray-700 whitespace-pre-line">{surveyInstructions}</p>
+                        ) : (
+                            <>
+                                <p className="text-gray-700 mb-4">
+                                    A series of statements are listed below. Each one describes a situation which may be related to a certain extent to what you do or feel. Mark with a <span className="font-bold">✓</span> the option that best applies to how often you engaged in the mentioned activity.
+                                </p>
+                                <p className="text-gray-700">
+                                    It is important for you to know that this questionnaire is completely independent and that there is not a correct or incorrect answer. The information you provide will be kept confidentially. Thank you very much.
+                                </p>
+                            </>
+                        )}
                     </div>
 
                     {/* Legend - Sticky */}
