@@ -181,7 +181,7 @@ export default function UserManagement({ users, roleOptions, canManagePrincipal 
                                             <ShieldCheck className="h-6 w-6 text-green-600" />
                                             User Management
                                         </h2>
-                                        <p className="text-sm text-gray-600">Administrative and Master Teacher accounts</p>
+                                        <p className="text-sm text-gray-600">Principal and Master Teacher accounts</p>
                                     </div>
                                     <Button onClick={openCreate} className="bg-green-600 hover:bg-green-700">
                                         <UserPlus className="h-4 w-4 mr-2" />
@@ -320,8 +320,8 @@ export default function UserManagement({ users, roleOptions, canManagePrincipal 
                         <DialogTitle>Add User</DialogTitle>
                         <DialogDescription>
                             {canManagePrincipal
-                                ? 'Create an Administrative or Master Teacher account.'
-                                : 'Create a Master Teacher account. Only the Administrator can add Administrative accounts.'}
+                                ? 'Create a Principal or Master Teacher account.'
+                                : 'Create a Master Teacher account. Only the Administrator can add Principal accounts.'}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-3">
@@ -375,7 +375,7 @@ export default function UserManagement({ users, roleOptions, canManagePrincipal 
                         <div>
                             <Label htmlFor="e-role">Role</Label>
                             {!canManagePrincipal && selected?.role === 'super-admin' ? (
-                                <Input id="e-role" value={selected?.role_label || 'Administrative'} readOnly className="bg-gray-50" />
+                                <Input id="e-role" value={selected?.role_label || 'Principal'} readOnly className="bg-gray-50" />
                             ) : (
                                 <Select value={form.role} onValueChange={(value) => setForm({ ...form, role: value })}>
                                     <SelectTrigger id="e-role"><SelectValue /></SelectTrigger>
@@ -387,7 +387,7 @@ export default function UserManagement({ users, roleOptions, canManagePrincipal 
                                 </Select>
                             )}
                             {!canManagePrincipal && (
-                                <p className="mt-1 text-xs text-gray-400">Only the Administrator can change accounts to Administrative.</p>
+                                <p className="mt-1 text-xs text-gray-400">Only the Administrator can change accounts to Principal.</p>
                             )}
                         </div>
                         <label className="flex items-center gap-2 text-sm">

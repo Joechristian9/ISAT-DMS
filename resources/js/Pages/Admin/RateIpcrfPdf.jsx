@@ -730,7 +730,7 @@ export default function RateIpcrfPdf({ teacher, submissions, availableYears, sel
                                                     <div className="border-2 border-gray-300 rounded-lg overflow-hidden bg-gray-100 shadow-lg">
                                                         <div className="h-[calc(100vh-280px)] min-h-[600px] max-h-[1000px] overflow-y-auto">
                                                             <iframe
-                                                                src={`/storage/${submissions[selectedDocIndex].file_path}`}
+                                                                src={`/files/${submissions[selectedDocIndex].file_path}`}
                                                                 className="w-full h-full"
                                                                 title="IPCRF Document"
                                                             />
@@ -999,7 +999,7 @@ export default function RateIpcrfPdf({ teacher, submissions, availableYears, sel
                             <div className="border-2 border-gray-300 rounded-lg overflow-hidden bg-gray-100">
                                 <div className="h-[55vh] min-h-[360px] overflow-y-auto">
                                     <iframe
-                                        src={`/storage/${submissions[selectedSubmissionIndex].file_path}`}
+                                        src={`/files/${submissions[selectedSubmissionIndex].file_path}`}
                                         className="w-full h-full"
                                         title={`IPCRF Document ${selectedSubmissionIndex + 1}`}
                                     />

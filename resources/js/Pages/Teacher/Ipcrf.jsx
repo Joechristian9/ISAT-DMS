@@ -819,7 +819,7 @@ export default function TeacherIpcrf({
                                     
                                     {/* Download Button */}
                                     <a
-                                        href={`/storage/${viewingPdf.path}`}
+                                        href={`/files/${viewingPdf.path}`}
                                         download
                                         className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
                                     >
@@ -845,7 +845,7 @@ export default function TeacherIpcrf({
                             <div className="flex-1 overflow-auto bg-gray-100 p-4">
                                 <div className="flex justify-center">
                                     <iframe
-                                        src={`/storage/${viewingPdf.path}`}
+                                        src={`/files/${viewingPdf.path}`}
                                         className="bg-white shadow-lg rounded-lg"
                                         style={{
                                             width: `${pdfZoom}%`,

@@ -26,7 +26,7 @@ class UserManagementController extends Controller
 
     /** Wording shown in the UI for each spatie role key. */
     private const ROLE_LABELS = [
-        'super-admin' => 'Administrative',
+        'super-admin' => 'Principal',
         'admin' => 'Master Teacher',
     ];
 
@@ -193,7 +193,7 @@ class UserManagementController extends Controller
     {
         if ($role === 'super-admin' && ! $request->user()->isAdministrator()) {
             throw ValidationException::withMessages([
-                'role' => 'Only the Administrator can create or assign an Administrative account.',
+                'role' => 'Only the Administrator can create or assign a Principal account.',
             ]);
         }
     }
