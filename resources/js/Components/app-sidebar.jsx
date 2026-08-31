@@ -18,20 +18,33 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 
-// Base admin navigation. `superAdminOnly` / `administratorOnly` items are
-// filtered by role below.
+// Base admin navigation. Each entry names a Ziggy route; `superAdminOnly` /
+// `administratorOnly` entries are filtered by role below. Routes are resolved
+// lazily inside the component (not at module load) and guarded with
+// `route().has()` so a name missing from the Ziggy payload — e.g. a stale
+// server-side route cache right after a deploy — hides that one item instead
+// of throwing and blanking the whole authenticated shell.
 const baseItems = [
-  { title: "Dashboard", url: route('admin.dashboard') },
-  { title: "Teacher Management", url: route('admin.teachers.index') },
-  { title: "User Management", url: route('admin.users.index'), superAdminOnly: true },
-  { title: "Assessment Tools", url: route('admin.assessment-tools'), administratorOnly: true },
-  { title: "IPCRF Submissions", url: route('admin.ipcrf.submissions') },
-  { title: "Signed IPCRF", url: route('admin.signed-ipcrf') },
-  { title: "IPCRF History", url: route('admin.ipcrf-history') },
-  { title: "Questionnaire Results", url: route('admin.questionnaire-results') },
-  { title: "IPCRF Configuration", url: route('admin.ipcrf.configuration') },
-  { title: "Audit Logs", url: route('admin.audit-logs.index') },
+  { title: "Dashboard", route: 'admin.dashboard' },
+  { title: "Teacher Management", route: 'admin.teachers.index' },
+  { title: "User Management", route: 'admin.users.index', superAdminOnly: true },
+  { title: "Assessment Tools", route: 'admin.assessment-tools', administratorOnly: true },
+  { title: "IPCRF Submissions", route: 'admin.ipcrf.submissions' },
+  { title: "Signed IPCRF", route: 'admin.signed-ipcrf' },
+  { title: "IPCRF History", route: 'admin.ipcrf-history' },
+  { title: "Questionnaire Results", route: 'admin.questionnaire-results' },
+  { title: "IPCRF Configuration", route: 'admin.ipcrf.configuration' },
+  { title: "Audit Logs", route: 'admin.audit-logs.index' },
 ]
+
+// Resolve a Ziggy route name to a URL, or null if it isn't in the payload.
+const safeRoute = (name) => {
+  try {
+    return route().has(name) ? route(name) : null;
+  } catch {
+    return null;
+  }
+}
 
 export function AppSidebar({
   ...props
@@ -43,11 +56,17 @@ export function AppSidebar({
   // A Master Teacher holds both admin + teacher roles.
   const alsoTeacher = hasRole(roles, 'teacher')
 
-  const items = baseItems.filter((item) =>
-    (!item.superAdminOnly || principal) && (!item.administratorOnly || administrator)
-  )
+  const items = baseItems
+    .filter((item) =>
+      (!item.superAdminOnly || principal) && (!item.administratorOnly || administrator)
+    )
+    .map((item) => ({ title: item.title, url: safeRoute(item.route) }))
+    .filter((item) => item.url !== null)
   if (alsoTeacher) {
-    items.push({ title: "→ My Teacher Panel", url: route('teacher.dashboard') })
+    const teacherUrl = safeRoute('teacher.dashboard')
+    if (teacherUrl) {
+      items.push({ title: "→ My Teacher Panel", url: teacherUrl })
+    }
   }
 
   const navMain = [
@@ -72,7 +91,7 @@ export function AppSidebar({
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <a href={route('admin.dashboard')} className="flex items-center gap-2 hover:bg-green-50 transition-colors">
+              <a href={safeRoute('admin.dashboard') ?? '/dashboard'} className="flex items-center gap-2 hover:bg-green-50 transition-colors">
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg shadow-md" style={{ background: 'linear-gradient(to bottom right, #81C784, #66BB6A)' }}>
                   <img
                     src="/pictures/isat.tmp"
