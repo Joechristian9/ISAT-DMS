@@ -49,52 +49,43 @@ class IpcrfController extends Controller
         }
         
         $currentYear = $activeConfig->school_year;
-        
-        // Load KRAs with filtered objectives based on configuration AND position tier
-        $kras = Kra::with(['objectives' => function ($query) use ($activeConfig, $teacherPositionTier) {
-            $query->where('is_active', true);
-            
-            // Filter by selected objective IDs if configured
-            if ($activeConfig->selected_objective_ids && count($activeConfig->selected_objective_ids) > 0) {
-                $query->where(function($q) use ($activeConfig) {
-                    $q->whereIn('id', $activeConfig->selected_objective_ids)
-                      ->orWhere('ipcrf_configuration_id', $activeConfig->id); // Include custom objectives
-                });
-            }
-            
-            // Filter by teacher's position tier
-            if ($teacherPositionTier) {
-                $query->where(function($q) use ($teacherPositionTier) {
-                    $q->whereNull('position_tiers')  // Include objectives for all positions
-                      ->orWhereJsonContains('position_tiers', $teacherPositionTier); // Or specific to teacher's tier
-                });
-            }
-            
-            $query->orderBy('order');
-        }, 'objectives.competencies'])
-        ->where('is_active', true)
-        ->where(function($query) use ($activeConfig) {
-            $query->whereNull('ipcrf_configuration_id') // Default KRAs
-                  ->orWhere('ipcrf_configuration_id', $activeConfig->id); // Custom KRAs created for this config
 
-            // A custom KRA created for a previous school year and reused here:
-            // keep it if one of its objectives was re-selected into this config.
-            if (!empty($activeConfig->selected_objective_ids)) {
-                $query->orWhereHas('objectives', function ($q) use ($activeConfig) {
-                    $q->whereIn('id', $activeConfig->selected_objective_ids)
-                      ->where('is_active', true);
+        // The IPCRF tool must render ONLY what THIS tier's active configuration
+        // selected - not every KRA in the system. Scope strictly to:
+        //   - objectives whose id is in $activeConfig->selected_objective_ids
+        //   - objectives / KRAs created as custom items for this exact config
+        // The configuration is the single source of truth; the teacher's tier
+        // is already baked into which config getActiveConfigForTier() returned.
+        $selectedObjectiveIds = $activeConfig->selected_objective_ids ?? [];
+
+        $objectiveScope = function ($query) use ($selectedObjectiveIds, $activeConfig) {
+            $query->where(function ($q) use ($selectedObjectiveIds, $activeConfig) {
+                $q->whereIn('id', $selectedObjectiveIds)
+                  ->orWhere('ipcrf_configuration_id', $activeConfig->id);
+            });
+        };
+
+        $kras = Kra::with([
+                'objectives' => function ($query) use ($objectiveScope) {
+                    $query->where('is_active', true);
+                    $objectiveScope($query);
+                    $query->orderBy('order');
+                },
+                'objectives.competencies',
+            ])
+            ->where('is_active', true)
+            ->where(function ($query) use ($selectedObjectiveIds, $activeConfig, $objectiveScope) {
+                // A custom KRA built for this configuration.
+                $query->where('ipcrf_configuration_id', $activeConfig->id);
+
+                // Or a KRA that owns at least one objective this config selected.
+                $query->orWhereHas('objectives', function ($q) use ($objectiveScope) {
+                    $q->where('is_active', true);
+                    $objectiveScope($q);
                 });
-            }
-        })
-        // Filter KRAs by position tier as well
-        ->where(function($query) use ($teacherPositionTier) {
-            if ($teacherPositionTier) {
-                $query->whereNull('position_tiers')
-                      ->orWhereJsonContains('position_tiers', $teacherPositionTier);
-            }
-        })
-        ->orderBy('order')
-        ->get();
+            })
+            ->orderBy('order')
+            ->get();
         
         // Get teacher's submissions - grouped by objective
         $submissions = TeacherSubmission::where('teacher_id', auth()->id())

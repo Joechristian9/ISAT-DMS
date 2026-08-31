@@ -36,7 +36,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Toaster } from "@/components/ui/sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,7 +65,9 @@ import {
     MoreVertical
 } from 'lucide-react';
 
-export default function IpcrfConfiguration({ configurations, currentYear, defaultKras, positionTiers, flash }) {
+export default function IpcrfConfiguration({ configurations, currentYear, defaultKras, positionTiers, canManageAllTiers = false, flash }) {
+    // Master Teacher (admin) may not manage Master-Teacher-tier configurations.
+    const canManageTier = (tier) => canManageAllTiers || !tier || !String(tier).startsWith('MT');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -237,16 +238,6 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
             selected_objective_ids: objectiveIdsForTier(tier),
         }));
     };
-
-    // Show flash messages
-    useEffect(() => {
-        if (flash?.success) {
-            toast.success(flash.success);
-        }
-        if (flash?.error) {
-            toast.error(flash.error);
-        }
-    }, [flash]);
 
     const resetForm = () => {
         setFormData({
@@ -950,7 +941,6 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
     return (
         <>
             <Head title="IPCRF Configuration" />
-            <Toaster />
             <SidebarProvider>
                 <AppSidebar />
                 <SidebarInset>
@@ -1076,6 +1066,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                                                     size="sm"
                                                                     variant="outline"
                                                                     onClick={() => handleToggleActive(config)}
+                                                                    disabled={!canManageTier(config.position_tier)}
                                                                     className={config.is_active ? 'border-green-500 text-green-700' : 'border-gray-300'}
                                                                 >
                                                                     {config.is_active ? (
@@ -1096,6 +1087,7 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                                                     size="sm"
                                                                     variant="outline"
                                                                     onClick={() => handleToggleLock(config)}
+                                                                    disabled={!canManageTier(config.position_tier)}
                                                                     className={config.is_locked ? 'border-red-500 text-red-700' : 'border-gray-300'}
                                                                 >
                                                                     {config.is_locked ? (
@@ -1126,14 +1118,14 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                                                         <DropdownMenuContent align="end">
                                                                             <DropdownMenuItem
                                                                                 onClick={() => openEditModal(config)}
-                                                                                disabled={config.is_locked}
+                                                                                disabled={config.is_locked || !canManageTier(config.position_tier)}
                                                                             >
                                                                                 <Edit className="mr-2 h-4 w-4" />
                                                                                 Edit
                                                                             </DropdownMenuItem>
                                                                             <DropdownMenuItem
                                                                                 onClick={() => openDeleteModal(config)}
-                                                                                disabled={config.is_locked}
+                                                                                disabled={config.is_locked || !canManageTier(config.position_tier)}
                                                                                 className="text-red-600 focus:text-red-700"
                                                                             >
                                                                                 <Trash2 className="mr-2 h-4 w-4" />
@@ -1203,6 +1195,11 @@ export default function IpcrfConfiguration({ configurations, currentYear, defaul
                                 <p className="text-xs text-gray-500">
                                     Active objectives for the tier are selected automatically.
                                 </p>
+                                {!canManageAllTiers && (
+                                    <p className="text-xs text-amber-600">
+                                        Master Teacher (MT) tiers can only be configured by the Principal.
+                                    </p>
+                                )}
                             </div>
                         </div>
 

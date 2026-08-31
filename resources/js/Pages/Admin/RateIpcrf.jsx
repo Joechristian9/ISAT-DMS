@@ -26,20 +26,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Toaster } from "@/components/ui/sonner";
 import { ArrowLeft, Save, User, Award, TrendingUp } from 'lucide-react';
 
 export default function RateIpcrf({ teacher, kras, flash }) {
-    // Show flash messages
-    useEffect(() => {
-        if (flash?.success) {
-            toast.success(flash.success);
-        }
-        if (flash?.error) {
-            toast.error(flash.error);
-        }
-    }, [flash]);
-
     // Form for rating
     const ratingForm = useForm({
         teacher_id: teacher.id,
@@ -138,7 +127,6 @@ export default function RateIpcrf({ teacher, kras, flash }) {
     return (
         <>
             <Head title={`Rate IPCRF - ${teacher.name}`} />
-            <Toaster />
             <SidebarProvider>
                 <AppSidebar />
                 <SidebarInset>

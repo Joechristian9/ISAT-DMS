@@ -27,10 +27,13 @@ class User extends Authenticatable
         'teacher_type',
         'employee_id',
         'career_stage',
+        'gender',
         'teacher_status',
         'department',
         'school_campus',
+        'level',
         'date_hired',
+        'years_of_service',
         'contact_number',
         'address',
         'profile_picture',
@@ -105,13 +108,13 @@ class User extends Authenticatable
 
     /**
      * Can this account rate a teacher who sits in the given tier?
-     *   Principal (super-admin) rates the Master Teacher I-II tier only.
-     *   Master Teacher (admin)  rates the Teacher I-III tier only.
+     *   Principal (super-admin) oversees every tier.
+     *   Master Teacher (admin)  rates the Teacher I-VII tier (any non-MT tier).
      */
     public function canRateIpcrfTier(string $tier): bool
     {
         if ($this->hasRole('super-admin')) {
-            return $tier === 'master_teacher';
+            return true;
         }
         if ($this->hasRole('admin')) {
             return $tier === 'teacher';

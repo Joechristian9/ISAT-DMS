@@ -344,7 +344,7 @@ export default function TeacherDashboard({ user, activeConfig, submissions, sign
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                     <div className="text-center">
                         <p className="text-sm font-medium mb-2">
-                            © {new Date().getFullYear()} ISAT Document Management System
+                            © {new Date().getFullYear()} E-Management Portal
                         </p>
                         <p className="text-xs text-gray-400">
                             Empowering educators through excellence

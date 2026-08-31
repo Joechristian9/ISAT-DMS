@@ -27,6 +27,7 @@ class IpcrfHistoryController extends Controller
     {
         $schoolYear = $request->input('school_year') ?: null;
         $teacherId = $request->input('teacher_id') ?: null;
+        $search = trim((string) $request->input('search', '')) ?: null;
 
         $schoolYears = collect()
             ->merge(IpcrfRating::query()->distinct()->pluck('rating_period'))
@@ -44,7 +45,10 @@ class IpcrfHistoryController extends Controller
 
         $scoped = fn ($query, string $yearColumn) => $query
             ->when($schoolYear, fn ($q) => $q->where($yearColumn, $schoolYear))
-            ->when($teacherId, fn ($q) => $q->where('teacher_id', $teacherId));
+            ->when($teacherId, fn ($q) => $q->where('teacher_id', $teacherId))
+            ->when($search, fn ($q) => $q->whereHas('teacher', fn ($t) => $t
+                ->where('name', 'like', "%{$search}%")
+                ->orWhere('email', 'like', "%{$search}%")));
 
         // --- MOV uploads (paginated) ---
         $movs = $scoped(
@@ -104,6 +108,7 @@ class IpcrfHistoryController extends Controller
             'filters' => [
                 'school_year' => $schoolYear,
                 'teacher_id' => $teacherId ? (int) $teacherId : null,
+                'search' => $search,
             ],
             'totals' => [
                 'submissions' => $scoped(TeacherSubmission::query(), 'school_year')->count(),

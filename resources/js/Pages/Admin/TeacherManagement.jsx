@@ -41,7 +41,6 @@ import {
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Search, Plus, Edit, Trash2, TrendingUp, History, MoreVertical, Calendar, Award, CheckCircle2, User, Briefcase, Mail, Phone, MapPin, Building, IdCard } from 'lucide-react';
-import { Toaster } from "@/components/ui/sonner"
 
 export default function TeacherManagement({ teachers, positions, careerStages, filters, flash }) {
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
@@ -73,15 +72,6 @@ export default function TeacherManagement({ teachers, positions, careerStages, f
         };
     }, [openMenuRow]);
 
-    // Show flash messages as toasts
-    useEffect(() => {
-        if (flash?.success) {
-            toast.success(flash.success);
-        }
-        if (flash?.error) {
-            toast.error(flash.error);
-        }
-    }, [flash]);
 
     // Form for creating teacher
     const createForm = useForm({
@@ -732,7 +722,7 @@ export default function TeacherManagement({ teachers, positions, careerStages, f
                                             )}
                                         </div>
                                         <div className="space-y-1">
-                                            <Label htmlFor="edit_teacher_status" className="text-xs">Status</Label>
+                                            <Label htmlFor="edit_teacher_status" className="text-xs">Type</Label>
                                             <Select
                                                 value={editForm.data.teacher_status}
                                                 onValueChange={(value) => editForm.setData('teacher_status', value)}
@@ -1047,7 +1037,6 @@ export default function TeacherManagement({ teachers, positions, careerStages, f
                     </Dialog>
                 </SidebarInset>
             </SidebarProvider>
-            <Toaster />
         </>
     );
 }

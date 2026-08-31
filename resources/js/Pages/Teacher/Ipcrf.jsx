@@ -395,8 +395,8 @@ export default function TeacherIpcrf({
                                         <th className="px-4 py-3 text-center text-sm font-bold text-white uppercase border-2 border-gray-400 w-32">
                                             KRA
                                         </th>
-                                        <th className="px-4 py-3 text-center text-sm font-bold text-white uppercase border-2 border-gray-400 w-12">
-                                            
+                                        <th className="px-4 py-3 text-center text-sm font-bold text-white uppercase border-2 border-gray-400 w-24">
+                                            Objective No.
                                         </th>
                                         <th className="px-4 py-3 text-center text-sm font-bold text-white uppercase border-2 border-gray-400">
                                             Objective
@@ -436,8 +436,8 @@ export default function TeacherIpcrf({
                                                         <div className="font-bold mb-1">{currentKraIndex + 1}. {currentKra.name}</div>
                                                     </td>
                                                 )}
-                                                <td className={`px-4 py-4 text-lg text-gray-900 text-center border-l-2 border-r-2 border-gray-400 font-bold ${isLastInKra ? 'border-b-2' : ''} ${objIndex === 0 ? 'border-t-2' : ''}`}>
-                                                    {globalIndex}
+                                                <td className={`px-4 py-4 text-base text-gray-900 text-center border-l-2 border-r-2 border-gray-400 font-bold whitespace-nowrap ${isLastInKra ? 'border-b-2' : ''} ${objIndex === 0 ? 'border-t-2' : ''}`}>
+                                                    {objective.code || globalIndex}
                                                 </td>
 
                                                 <td className={`px-5 py-4 text-lg leading-relaxed text-gray-800 border-l-2 border-r-2 border-gray-400 ${isLastInKra ? 'border-b-2' : ''} ${objIndex === 0 ? 'border-t-2' : ''}`}>

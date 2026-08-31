@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class AuthenticatedSessionController extends Controller
 {
@@ -49,8 +50,13 @@ class AuthenticatedSessionController extends Controller
 
     /**
      * Destroy an authenticated session.
+     *
+     * Uses Inertia::location() so the client does a FULL page load to /login
+     * (not an SPA visit). That drops the cached panel pages from Inertia's
+     * history state, so pressing Back after logout re-requests from the server
+     * and lands on /login - the user must sign in again.
      */
-    public function destroy(Request $request): RedirectResponse
+    public function destroy(Request $request): HttpResponse
     {
         Auth::guard('web')->logout();
 
@@ -58,6 +64,6 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        return Inertia::location(route('login'));
     }
 }

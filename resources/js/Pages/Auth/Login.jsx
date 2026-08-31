@@ -69,7 +69,7 @@ export default function Login({ status, canResetPassword }) {
                                 </h1>
                                 <div className="inline-block bg-white/10 backdrop-blur-md rounded-2xl px-8 py-3 border border-white/20">
                                     <p className="text-base font-semibold text-white">
-                                        ISAT Document Management System
+                                        E-Management Portal
                                     </p>
                                 </div>
                                 <p className="text-lg text-gray-300 max-w-md mx-auto lg:mx-0">
@@ -220,7 +220,7 @@ export default function Login({ status, canResetPassword }) {
                     {/* Footer */}
                     <div className="text-center space-y-2 mt-8 lg:col-span-2">
                         <p className="text-sm text-white/90 font-medium">
-                            © {new Date().getFullYear()} ISAT Document Management System
+                            © {new Date().getFullYear()} E-Management Portal
                         </p>
                         <p className="text-xs text-white/60">
                             All rights reserved

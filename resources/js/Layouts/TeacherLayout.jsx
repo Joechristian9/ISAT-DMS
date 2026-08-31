@@ -1,10 +1,16 @@
-import { Link, router } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
-import { Home, FileText, User, Settings, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Home, FileText, User, Settings, LogOut, ChevronLeft, ChevronRight, LayoutGrid } from 'lucide-react';
+import { hasRole } from '@/lib/roleLabels';
 
 export default function TeacherLayout({ children, user = { name: 'User', email: 'user@example.com' } }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [showUserDropdown, setShowUserDropdown] = useState(false);
+
+    const { auth } = usePage().props;
+    const roles = auth?.roles ?? auth?.user?.roles;
+    // A Master Teacher also holds the admin role - let them jump to the admin panel.
+    const alsoAdmin = hasRole(roles, 'admin') || hasRole(roles, 'super-admin');
 
     const handleLogout = () => {
         router.post(route('logout'));
@@ -15,6 +21,7 @@ export default function TeacherLayout({ children, user = { name: 'User', email: 
         { name: 'IPCRF Tool', href: route('teacher.ipcrf'), icon: FileText },
         { name: 'Signed IPCRF', href: route('teacher.signed-ipcrf'), icon: FileText },
         { name: 'IPCRF History', href: route('teacher.ipcrf-history'), icon: FileText },
+        ...(alsoAdmin ? [{ name: 'Admin Panel', href: route('admin.dashboard'), icon: LayoutGrid }] : []),
     ];
 
     const isActive = (href) => {

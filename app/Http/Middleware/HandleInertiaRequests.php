@@ -38,6 +38,15 @@ class HandleInertiaRequests extends Middleware
                 'roles' => $user ? $user->getRoleNames()->values() : [],
                 'roleLabel' => $user?->roleLabel(),
             ],
+            // Surfaced as a toast globally by <FlashToaster/>. Controllers just
+            // need ->with('success'|'error'|'warning'|'info'|'message', '...').
+            'flash' => [
+                'success' => $request->session()->get('success'),
+                'error' => $request->session()->get('error'),
+                'warning' => $request->session()->get('warning'),
+                'info' => $request->session()->get('info'),
+                'message' => $request->session()->get('message'),
+            ],
         ];
     }
 }

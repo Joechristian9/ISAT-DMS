@@ -31,10 +31,34 @@ class IpcrfManagementController extends Controller
         $search = $request->input('search', '');
         $statusFilter = $request->input('status', '');
         $yearFilter = $request->input('year', '');
+        $hasUploads = $request->boolean('has_uploads');
+        $positionFilter = $request->input('position', '');
+
+        // Position tiers the current rater can filter by.
+        //   Principal (super-admin) -> every tier
+        //   Master Teacher (admin)  -> Teacher tiers only
+        $raterIsPrincipal = auth()->user()->hasRole('super-admin');
+        $positionOptions = $raterIsPrincipal
+            ? ['T1 - T3', 'T4 - T7', 'MT1 - MT2', 'MT3 - MT5']
+            : ['T1 - T3', 'T4 - T7'];
 
         // Active configurations are now defined per position tier
         $activeConfigs = IpcrfConfiguration::where('is_active', true)->get();
         $currentSchoolYear = $activeConfigs->first()->school_year ?? null;
+
+        // Each tier's active config can target a DIFFERENT school year, so MOV
+        // counts must use the school year of the teacher's own tier config,
+        // not one global "current" year.
+        $schoolYearByTier = $activeConfigs
+            ->filter(fn ($config) => $config->position_tier)
+            ->mapWithKeys(fn ($config) => [$config->position_tier => $config->school_year]);
+
+        // Which tier the rater is currently looking at (drives the has_uploads filter).
+        $validPosition = $positionFilter && in_array($positionFilter, $positionOptions, true);
+        $scopeTier = $validPosition
+            ? $positionFilter
+            : ($raterIsPrincipal ? 'MT1 - MT2' : 'T1 - T3');
+        $scopeSchoolYear = $schoolYearByTier[$scopeTier] ?? $currentSchoolYear;
 
         // Expected objective count per position tier, taken from each tier's configuration
         $objectiveTotalsByTier = $activeConfigs
@@ -65,26 +89,36 @@ class IpcrfManagementController extends Controller
                 }
             ])
             ->withMax('ipcrfRatings as latest_rating_date', 'created_at')
-            // Count MOV submissions for the current school year
-            ->withCount(['teacherSubmissions as mov_uploads_count' => function ($q) use ($currentSchoolYear) {
-                if ($currentSchoolYear) {
-                    $q->where('school_year', $currentSchoolYear);
-                }
-            }]);
+            // Baseline count (all years). Overwritten per-teacher below with the
+            // count for that teacher's own tier / school year.
+            ->withCount('teacherSubmissions as mov_uploads_count');
 
         if ($search) {
             $query->where('name', 'like', "%{$search}%");
         }
 
-        // Scope the list to the rater's tier:
-        //   Principal (super-admin) -> Master Teacher I-II only
-        //   Master Teacher (admin)  -> Teacher I-III only
-        $rater = auth()->user();
-        $ratingScope = $rater->hasRole('super-admin') ? 'master_teacher' : 'teacher';
+        // Only teachers who have actually submitted a MOV (the "MOV Uploads"
+        // column would show a number other than 0), for the school year of the
+        // tier currently being viewed.
+        if ($hasUploads) {
+            $query->whereHas('teacherSubmissions', function ($q) use ($scopeSchoolYear) {
+                if ($scopeSchoolYear) {
+                    $q->where('school_year', $scopeSchoolYear);
+                }
+            });
+        }
 
-        if ($ratingScope === 'master_teacher') {
+        $rater = auth()->user();
+        $ratingScope = $raterIsPrincipal ? 'master_teacher' : 'teacher';
+
+        if ($validPosition) {
+            // An explicit position pick sets the scope (within what the rater may see).
+            $query->where('division', 'like', '%"position_range":"' . $positionFilter . '"%');
+        } elseif ($ratingScope === 'master_teacher') {
+            // Principal default view: Master Teacher tiers.
             $query->where('division', 'like', '%"position_range":"MT%');
         } else {
+            // Master Teacher: never the MT tiers.
             $query->where(function ($q) {
                 $q->whereNull('division')
                     ->orWhere('division', 'not like', '%"position_range":"MT%');
@@ -96,13 +130,19 @@ class IpcrfManagementController extends Controller
             ->orderBy('name') // Secondary sort by name for teachers without ratings
             ->paginate(10);
 
-        // Parse division JSON for each teacher to get position tier info and the
-        // objective total expected for that tier
-        $teachers->getCollection()->transform(function ($teacher) use ($objectiveTotalsByTier, $fallbackTotal) {
+        // Parse division JSON for each teacher; resolve the MOV count / expected
+        // total against THAT teacher's own tier config (which may target a
+        // different school year than the rater's default view).
+        $teachers->getCollection()->transform(function ($teacher) use ($objectiveTotalsByTier, $fallbackTotal, $schoolYearByTier, $currentSchoolYear) {
             $divisionData = json_decode($teacher->division, true);
             $teacher->position_range = is_array($divisionData) ? ($divisionData['position_range'] ?? null) : null;
             $teacher->position_career_stage = is_array($divisionData) ? ($divisionData['career_stage'] ?? null) : null;
             $teacher->expected_movs = $objectiveTotalsByTier[$teacher->position_range] ?? $fallbackTotal;
+
+            $tierYear = $schoolYearByTier[$teacher->position_range] ?? $currentSchoolYear;
+            $teacher->mov_uploads_count = $tierYear
+                ? $teacher->teacherSubmissions->where('school_year', $tierYear)->count()
+                : $teacher->teacherSubmissions->count();
 
             return $teacher;
         });
@@ -124,13 +164,19 @@ class IpcrfManagementController extends Controller
             'currentSchoolYear' => $currentSchoolYear,
             'ratingScope' => [
                 'tier' => $ratingScope,
-                'label' => $ratingScope === 'master_teacher' ? 'Master Teacher I-II' : 'Teacher I-III',
+                'label' => $validPosition
+                    ? $positionFilter
+                    : ($raterIsPrincipal ? 'all positions' : 'Teacher I-VII'),
                 'raterRole' => $rater->roleLabel(),
+                'allTiers' => $raterIsPrincipal,
             ],
+            'positionOptions' => $positionOptions,
             'filters' => [
                 'search' => $search,
                 'status' => $statusFilter,
                 'year' => $yearFilter,
+                'has_uploads' => $hasUploads,
+                'position' => $positionFilter,
             ],
         ]);
     }
@@ -143,20 +189,17 @@ class IpcrfManagementController extends Controller
                 ->with('error', 'Invalid teacher selected.');
         }
 
-        // Tier check: a Master Teacher (admin) may not rate a Master Teacher I-II.
+        // Tier check: a Master Teacher (admin) may not rate a Master Teacher (MT tier).
         if (! auth()->user()->canRateIpcrfTier($teacher->ipcrfTier())) {
             return redirect()->route('admin.ipcrf.submissions')
-                ->with('error', 'You are not allowed to rate this teacher. Master Teachers rate Teacher I-III; the Principal rates Master Teacher I-II.');
+                ->with('error', 'You are not allowed to rate this teacher. Master Teachers rate Teacher I-VII; the Principal rates Master Teacher I-V.');
         }
 
-        // Get school year from request, default to current active config
-        $schoolYear = $request->input('school_year');
-        
-        // If no school year provided, get from active configuration
-        if (!$schoolYear) {
-            $activeConfig = \App\Models\IpcrfConfiguration::where('is_active', true)->first();
-            $schoolYear = $activeConfig ? $activeConfig->school_year : null;
-        }
+        // School year: only filter when the rater explicitly picks one. With
+        // nothing chosen (first load or "All School Years") show EVERY MOV the
+        // teacher submitted - the previous code defaulted to a single active
+        // config's year, which hid submissions made under a different tier/year.
+        $schoolYear = trim((string) $request->input('school_year', '')) ?: null;
 
         // Get available school years for this teacher
         $availableYears = TeacherSubmission::where('teacher_id', $teacher->id)
@@ -168,11 +211,11 @@ class IpcrfManagementController extends Controller
         // Get teacher's IPCRF submissions with related data for selected year
         $query = TeacherSubmission::where('teacher_id', $teacher->id)
             ->with(['objective.kra', 'competency']);
-        
+
         if ($schoolYear) {
             $query->where('school_year', $schoolYear);
         }
-        
+
         $submissions = $query->orderBy('created_at', 'desc')->get();
 
         return Inertia::render('Admin/RateIpcrfPdf', [
@@ -202,11 +245,11 @@ class IpcrfManagementController extends Controller
 
         $teacherId = $request->teacher_id;
 
-        // Tier check: block a Master Teacher (admin) from rating a Master Teacher I-II.
+        // Tier check: block a Master Teacher (admin) from rating a Master Teacher (MT tier).
         $ratee = User::find($teacherId);
         if ($ratee && ! auth()->user()->canRateIpcrfTier($ratee->ipcrfTier())) {
             return redirect()->route('admin.ipcrf.submissions')
-                ->with('error', 'You are not allowed to rate this teacher. Master Teachers rate Teacher I-III; the Principal rates Master Teacher I-II.');
+                ->with('error', 'You are not allowed to rate this teacher. Master Teachers rate Teacher I-VII; the Principal rates Master Teacher I-V.');
         }
 
         $totalRating = 0;
@@ -266,10 +309,10 @@ class IpcrfManagementController extends Controller
             'remarks' => 'nullable|string',
         ]);
 
-        // Tier check: block a Master Teacher (admin) from rating a Master Teacher I-II.
+        // Tier check: block a Master Teacher (admin) from rating a Master Teacher (MT tier).
         $ratee = User::find($request->teacher_id);
         if ($ratee && ! auth()->user()->canRateIpcrfTier($ratee->ipcrfTier())) {
-            return back()->with('error', 'You are not allowed to rate this teacher. Master Teachers rate Teacher I-III; the Principal rates Master Teacher I-II.');
+            return back()->with('error', 'You are not allowed to rate this teacher. Master Teachers rate Teacher I-VII; the Principal rates Master Teacher I-V.');
         }
 
         // Calculate total score and average rating from KRA details

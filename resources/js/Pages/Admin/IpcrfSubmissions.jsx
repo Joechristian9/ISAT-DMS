@@ -40,16 +40,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Toaster } from "@/components/ui/sonner";
 import { Search, Plus, Eye, FileDown, FileCheck, FileX, ClipboardList } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { generateIpcrfOfficialForm } from '@/lib/ipcrfOfficialForm';
 
-export default function IpcrfSubmissions({ teachers, availableYears, kras, totalObjectives, currentSchoolYear, ratingScope, filters, flash }) {
+const POSITION_LABELS = {
+    'T1 - T3': 'T1 - T3 (Teacher I-III)',
+    'T4 - T7': 'T4 - T7 (Teacher IV-VII)',
+    'MT1 - MT2': 'MT1 - MT2 (Master Teacher I-II)',
+    'MT3 - MT5': 'MT3 - MT5 (Master Teacher III-V)',
+};
+
+export default function IpcrfSubmissions({ teachers, availableYears, kras, totalObjectives, currentSchoolYear, ratingScope, positionOptions = [], filters, flash }) {
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
     const [selectedStatus, setSelectedStatus] = useState(filters.status || '');
     const [selectedYear, setSelectedYear] = useState(filters.year || '');
+    const [selectedUploads, setSelectedUploads] = useState(filters.has_uploads ? 'has' : '');
+    const [selectedPosition, setSelectedPosition] = useState(filters.position || '');
+
+    const applyFilters = (overrides = {}) => {
+        router.get(route('admin.ipcrf.submissions'), {
+            search: searchTerm,
+            status: selectedStatus,
+            year: selectedYear,
+            has_uploads: selectedUploads === 'has' ? 1 : '',
+            position: selectedPosition,
+            ...overrides,
+        }, { preserveState: true });
+    };
     const [isViewDetailsModalOpen, setIsViewDetailsModalOpen] = useState(false);
     const [selectedRating, setSelectedRating] = useState(null);
     const [selectedTeacher, setSelectedTeacher] = useState(null);
@@ -57,26 +76,8 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, total
     const [expandedYear, setExpandedYear] = useState(null);
     const RECORDS_PER_PAGE = 4;
 
-    // Show flash messages
-    useEffect(() => {
-        if (flash?.success) {
-            toast.success(flash.success);
-        }
-        if (flash?.error) {
-            toast.error(flash.error);
-        }
-    }, [flash]);
-
     // Handle search
-    const handleSearch = () => {
-        router.get(route('admin.ipcrf.submissions'), {
-            search: searchTerm,
-            status: selectedStatus,
-            year: selectedYear,
-        }, {
-            preserveState: true,
-        });
-    };
+    const handleSearch = () => applyFilters();
 
     // Get status badge color
     const getStatusBadge = (status) => {
@@ -161,15 +162,30 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, total
 
             const teacher = teachers.data.find((t) => t.ipcrf_ratings?.some((r) => r.id === selectedRating.id));
 
+            // Job title: real Position, then the division JSON position_title, then a role label.
+            const positionLabel = (u) => {
+                if (!u) return '';
+                if (u.current_position?.name) return u.current_position.name;
+                try {
+                    const d = typeof u.division === 'string' ? JSON.parse(u.division) : u.division;
+                    if (d?.position_title) return d.position_title;
+                } catch (e) { /* not JSON */ }
+                const roles = (u.roles || []).map((r) => (typeof r === 'string' ? r : r?.name));
+                if (roles.includes('super-admin')) return 'Principal';
+                if (roles.includes('admin')) return 'Master Teacher';
+                if (roles.includes('teacher')) return 'Teacher';
+                return '';
+            };
+
             await generateIpcrfOfficialForm({
                 employee: {
                     name: teacher?.name || '',
-                    position: teacher?.current_position?.name || '',
+                    position: positionLabel(teacher) || 'No Position',
                     division: 'ISABELA SCHOOL OF ARTS AND TRADES - Ilagan Campus',
                 },
                 rater: {
                     name: authUser?.name || '',
-                    position: authUser?.roles?.[0]?.name || '',
+                    position: positionLabel(authUser),
                 },
                 ratingPeriod: selectedRating.rating_period || selectedRating.school_year || '',
                 dateOfReview: selectedRating.created_at ? new Date(selectedRating.created_at) : new Date(),
@@ -477,7 +493,6 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, total
     return (
         <>
             <Head title="IPCRF Submissions" />
-            <Toaster />
             <SidebarProvider>
                 <AppSidebar />
                 <SidebarInset>
@@ -511,11 +526,22 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, total
                                 <h2 className="text-2xl font-semibold mb-2">IPCRF Submissions</h2>
 
                                 {ratingScope && (
-                                    <div className="mb-6 flex items-center gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+                                    <div className="mb-6 flex flex-wrap items-center gap-1.5 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
                                         <span className="font-semibold">{ratingScope.raterRole}</span>
-                                        <span>&mdash; you can rate the</span>
-                                        <span className="font-semibold">{ratingScope.label}</span>
-                                        <span>tier only. Other tiers are hidden from this list.</span>
+                                        <span>&mdash;</span>
+                                        {ratingScope.allTiers ? (
+                                            <>
+                                                <span>you oversee</span>
+                                                <span className="font-semibold">{ratingScope.label}</span>
+                                                <span>&mdash; use <span className="font-semibold">Filter by Position</span> to narrow the list.</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <span>you can rate the</span>
+                                                <span className="font-semibold">{ratingScope.label}</span>
+                                                <span>tier only. Other tiers are hidden from this list.</span>
+                                            </>
+                                        )}
                                     </div>
                                 )}
 
@@ -542,13 +568,7 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, total
                                         <Select value={selectedStatus || "all"} onValueChange={(value) => {
                                             const filterValue = value === "all" ? "" : value;
                                             setSelectedStatus(filterValue);
-                                            router.get(route('admin.ipcrf.submissions'), {
-                                                search: searchTerm,
-                                                status: filterValue,
-                                                year: selectedYear,
-                                            }, {
-                                                preserveState: true,
-                                            });
+                                            applyFilters({ status: filterValue });
                                         }}>
                                             <SelectTrigger>
                                                 <SelectValue placeholder="All Status" />
@@ -567,13 +587,7 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, total
                                         <Select value={selectedYear || "all"} onValueChange={(value) => {
                                             const filterValue = value === "all" ? "" : value;
                                             setSelectedYear(filterValue);
-                                            router.get(route('admin.ipcrf.submissions'), {
-                                                search: searchTerm,
-                                                status: selectedStatus,
-                                                year: filterValue,
-                                            }, {
-                                                preserveState: true,
-                                            });
+                                            applyFilters({ year: filterValue });
                                         }}>
                                             <SelectTrigger>
                                                 <SelectValue placeholder="All Years" />
@@ -583,6 +597,44 @@ export default function IpcrfSubmissions({ teachers, availableYears, kras, total
                                                 {availableYears.map((year) => (
                                                     <SelectItem key={year} value={year}>
                                                         {year}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    <div className="w-full md:w-48">
+                                        <Label htmlFor="uploads">Filter by Uploads</Label>
+                                        <Select value={selectedUploads || "all"} onValueChange={(value) => {
+                                            const v = value === "has" ? "has" : "";
+                                            setSelectedUploads(v);
+                                            applyFilters({ has_uploads: v === "has" ? 1 : "" });
+                                        }}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="All" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All</SelectItem>
+                                                <SelectItem value="has">Has MOV uploads</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    <div className="w-full md:w-56">
+                                        <Label htmlFor="position">Filter by Position</Label>
+                                        <Select value={selectedPosition || "all"} onValueChange={(value) => {
+                                            const v = value === "all" ? "" : value;
+                                            setSelectedPosition(v);
+                                            applyFilters({ position: v });
+                                        }}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="All Positions" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All Positions</SelectItem>
+                                                {positionOptions.map((tier) => (
+                                                    <SelectItem key={tier} value={tier}>
+                                                        {POSITION_LABELS[tier] || tier}
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>

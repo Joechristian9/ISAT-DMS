@@ -6,7 +6,7 @@ import {
 
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
-import { roleLabel, isPrincipal } from "@/lib/roleLabels"
+import { roleLabel, isPrincipal, hasRole } from "@/lib/roleLabels"
 import {
   Sidebar,
   SidebarContent,
@@ -37,13 +37,20 @@ export function AppSidebar({
   const { auth } = usePage().props
   const roles = auth?.roles ?? auth?.user?.roles
   const principal = isPrincipal(roles)
+  // A Master Teacher holds both admin + teacher roles.
+  const alsoTeacher = hasRole(roles, 'teacher')
+
+  const items = baseItems.filter((item) => !item.superAdminOnly || principal)
+  if (alsoTeacher) {
+    items.push({ title: "→ My Teacher Panel", url: route('teacher.dashboard') })
+  }
 
   const navMain = [
     {
       title: "Menu",
       icon: Home,
       isActive: true,
-      items: baseItems.filter((item) => !item.superAdminOnly || principal),
+      items,
     },
   ]
 

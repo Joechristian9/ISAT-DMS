@@ -115,7 +115,7 @@ export default function Welcome({ auth }) {
                                     <h1 className="text-xl font-bold text-gray-900 transition-colors duration-300 group-hover:text-green-600">
                                         ISAT e-TRACES
                                     </h1>
-                                    <p className="text-xs text-gray-600">Document Management System</p>
+                                    <p className="text-xs text-gray-600">E-Management Portal</p>
                                 </div>
                             </div>
                             

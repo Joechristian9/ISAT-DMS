@@ -36,11 +36,13 @@ const surveyAverage = (responses) => {
 export default function IpcrfHistory({ groups, movsPagination, schoolYears, teachers, filters, totals }) {
     const [filterYear, setFilterYear] = useState(filters.school_year || '');
     const [filterTeacher, setFilterTeacher] = useState(filters.teacher_id ? String(filters.teacher_id) : '');
+    const [search, setSearch] = useState(filters.search || '');
 
     const applyFilters = () => {
         router.get(route('admin.ipcrf-history'), {
             school_year: filterYear,
             teacher_id: filterTeacher,
+            search,
         });
     };
 
@@ -120,7 +122,18 @@ export default function IpcrfHistory({ groups, movsPagination, schoolYears, teac
                                 <Filter className="h-5 w-5 text-gray-600" />
                                 <h2 className="text-lg font-bold text-gray-900">Filters</h2>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Search Teacher</label>
+                                    <input
+                                        type="text"
+                                        value={search}
+                                        onChange={(e) => setSearch(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+                                        placeholder="Name or email..."
+                                        className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
+                                    />
+                                </div>
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">School Year</label>
                                     <select

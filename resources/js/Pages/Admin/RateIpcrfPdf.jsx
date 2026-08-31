@@ -25,7 +25,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Toaster } from "@/components/ui/sonner";
 import { ArrowLeft, Save, User, Award, Star, FileText, Download, ClipboardList } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -35,17 +34,35 @@ export default function RateIpcrfPdf({ teacher, submissions, availableYears, sel
     const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
     const [selectedSubmissionIndex, setSelectedSubmissionIndex] = useState(null);
     const [currentPage, setCurrentPage] = useState(0);
+    const [isConfirmSubmitOpen, setIsConfirmSubmitOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const itemsPerPage = 5; // Show 5 items per page
 
-    // Show flash messages
-    useEffect(() => {
-        if (flash?.success) {
-            toast.success(flash.success);
-        }
-        if (flash?.error) {
-            toast.error(flash.error);
-        }
-    }, [flash]);
+    // Best available job title for a user-like object: real Position relation,
+    // then the position_title kept in the division JSON, then a role label.
+    const positionLabel = (u) => {
+        if (!u) return '';
+        if (u.current_position?.name) return u.current_position.name;
+        try {
+            const d = typeof u.division === 'string' ? JSON.parse(u.division) : u.division;
+            if (d?.position_title) return d.position_title;
+        } catch (e) { /* division isn't JSON */ }
+        const roles = (u.roles || []).map(r => (typeof r === 'string' ? r : r?.name));
+        if (roles.includes('super-admin')) return 'Principal';
+        if (roles.includes('admin')) return 'Master Teacher';
+        if (roles.includes('teacher')) return 'Teacher';
+        return '';
+    };
+
+    const adjectival = (r) => {
+        const n = Number(r) || 0;
+        if (n >= 4.5) return 'Outstanding';
+        if (n >= 3.5) return 'Very Satisfactory';
+        if (n >= 2.5) return 'Satisfactory';
+        if (n >= 1.5) return 'Unsatisfactory';
+        if (n > 0) return 'Poor';
+        return '—';
+    };
 
     // Handle school year change
     const handleYearChange = (e) => {
@@ -82,20 +99,24 @@ export default function RateIpcrfPdf({ teacher, submissions, availableYears, sel
     };
 
     // Handle submit all ratings
+    // Step 1: validate, then open the confirmation / receipt dialog.
     const handleSubmit = () => {
-        // Validate all submissions are rated
         const unratedCount = ratings.filter(r => r === 0).length;
         if (unratedCount > 0) {
             toast.error(`Please rate all ${submissions.length} submissions before submitting. ${unratedCount} remaining.`);
             return;
         }
+        setIsConfirmSubmitOpen(true);
+    };
 
-        // Prepare data for submission
+    // Step 2: actually post the ratings after the rater confirms.
+    const confirmSubmit = () => {
         const ratingsData = submissions.map((sub, index) => ({
             submission_id: sub.id,
             rating: ratings[index],
         }));
 
+        setIsSubmitting(true);
         router.post(route('admin.ipcrf.submissions.rate'), {
             teacher_id: teacher.id,
             ratings: ratingsData,
@@ -109,6 +130,10 @@ export default function RateIpcrfPdf({ teacher, submissions, availableYears, sel
                     const errorMessage = Array.isArray(errors[field]) ? errors[field][0] : errors[field];
                     toast.error(errorMessage);
                 });
+            },
+            onFinish: () => {
+                setIsSubmitting(false);
+                setIsConfirmSubmitOpen(false);
             },
         });
     };
@@ -142,7 +167,11 @@ export default function RateIpcrfPdf({ teacher, submissions, availableYears, sel
         );
     };
 
-    const isTeacher = auth.user.roles?.some(role => role.name === 'teacher');
+    // Raters = Master Teacher (admin) or Principal (super-admin). A Master Teacher
+    // holds the `teacher` role too, so we must check for a rater role, not the
+    // absence of `teacher`, otherwise dual-role raters get a read-only view.
+    const isRater = auth.user.roles?.some(role => role.name === 'admin' || role.name === 'super-admin');
+    const isTeacher = !isRater; // treated as read-only (cannot rate)
 
     // Export single submission to PDF in official IPCRF format
     const exportToPDF = (submissionIndex) => {
@@ -507,12 +536,12 @@ export default function RateIpcrfPdf({ teacher, submissions, availableYears, sel
             await generateIpcrfOfficialForm({
                 employee: {
                     name: teacher.name || '',
-                    position: teacher.current_position?.name || '',
+                    position: positionLabel(teacher) || 'No Position',
                     division: 'ISABELA SCHOOL OF ARTS AND TRADES - Ilagan Campus',
                 },
                 rater: {
                     name: auth.user.name || '',
-                    position: auth.user.roles?.[0]?.name || '',
+                    position: positionLabel(auth.user),
                 },
                 ratingPeriod: schoolYear,
                 dateOfReview: new Date(),
@@ -543,7 +572,6 @@ export default function RateIpcrfPdf({ teacher, submissions, availableYears, sel
     return (
         <>
             <Head title={`Rate IPCRF - ${teacher.name}`} />
-            <Toaster />
             <SidebarProvider>
                 <AppSidebar />
                 <SidebarInset>
@@ -619,11 +647,13 @@ export default function RateIpcrfPdf({ teacher, submissions, availableYears, sel
                                                         </option>
                                                     ))}
                                                 </select>
-                                                {selectedYear && (
-                                                    <p className="mt-2 text-sm text-gray-600">
-                                                        Showing submissions for <span className="font-semibold text-green-600">SY {selectedYear}</span>
-                                                    </p>
-                                                )}
+                                                <p className="mt-2 text-sm text-gray-600">
+                                                    Showing{' '}
+                                                    <span className="font-semibold text-green-600">
+                                                        {selectedYear ? `SY ${selectedYear}` : 'all school years'}
+                                                    </span>
+                                                    {' '}&mdash; {submissions.length} submission{submissions.length !== 1 ? 's' : ''}
+                                                </p>
                                             </div>
                                         )}
                                         
@@ -956,18 +986,18 @@ export default function RateIpcrfPdf({ teacher, submissions, availableYears, sel
             {/* Rating Modal */}
             {selectedSubmissionIndex !== null && (
                 <Dialog open={isRatingModalOpen} onOpenChange={setIsRatingModalOpen}>
-                    <DialogContent className="max-w-5xl max-h-[90vh]">
+                    <DialogContent className="max-w-6xl w-[95vw] max-h-[92vh] flex flex-col">
                         <DialogHeader>
                             <DialogTitle>Rate IPCRF Document #{selectedSubmissionIndex + 1}</DialogTitle>
                             <DialogDescription>
                                 Review the document and provide your rating
                             </DialogDescription>
                         </DialogHeader>
-                        
-                        <div className="space-y-4">
+
+                        <div className="space-y-4 overflow-y-auto flex-1 pr-1">
                             {/* PDF Viewer in Modal */}
                             <div className="border-2 border-gray-300 rounded-lg overflow-hidden bg-gray-100">
-                                <div className="h-[500px] overflow-y-auto">
+                                <div className="h-[55vh] min-h-[360px] overflow-y-auto">
                                     <iframe
                                         src={`/storage/${submissions[selectedSubmissionIndex].file_path}`}
                                         className="w-full h-full"
@@ -1017,17 +1047,17 @@ export default function RateIpcrfPdf({ teacher, submissions, availableYears, sel
                             </div>
 
                             {/* Pagination in Modal */}
-                            <div className="flex justify-center gap-2">
+                            <div className="flex flex-wrap justify-center gap-1.5">
                                 {submissions.map((_, index) => (
                                     <Button
                                         key={index}
                                         variant={selectedSubmissionIndex === index ? "default" : "outline"}
                                         size="sm"
                                         onClick={() => setSelectedSubmissionIndex(index)}
-                                        className={`min-w-[40px] ${
-                                            selectedSubmissionIndex === index 
-                                                ? 'bg-green-600 hover:bg-green-700' 
-                                                : ''
+                                        className={`min-w-[36px] h-8 px-2 ${
+                                            selectedSubmissionIndex === index
+                                                ? 'bg-green-600 hover:bg-green-700'
+                                                : ratings[index] > 0 ? 'border-green-400 text-green-700' : ''
                                         }`}
                                     >
                                         {index + 1}
@@ -1068,6 +1098,84 @@ export default function RateIpcrfPdf({ teacher, submissions, availableYears, sel
                     </DialogContent>
                 </Dialog>
             )}
+
+            {/* Confirm submission + receipt of all MOV ratings */}
+            <Dialog open={isConfirmSubmitOpen} onOpenChange={(o) => !isSubmitting && setIsConfirmSubmitOpen(o)}>
+                <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Confirm IPCRF Ratings</DialogTitle>
+                        <DialogDescription>
+                            Review every MOV rating for <span className="font-semibold">{teacher.name}</span>
+                            {selectedYear ? ` (SY ${selectedYear})` : ''}. This will be saved and cannot be undone from here.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {(() => {
+                        const rated = submissions.map((sub, i) => ({ sub, rating: ratings[i] }));
+                        const avg = rated.length
+                            ? rated.reduce((a, b) => a + (Number(b.rating) || 0), 0) / rated.length
+                            : 0;
+                        return (
+                            <div className="space-y-4">
+                                <div className="rounded-lg border overflow-hidden">
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                                            <tr>
+                                                <th className="px-3 py-2 text-left">#</th>
+                                                <th className="px-3 py-2 text-left">MOV / Objective</th>
+                                                <th className="px-3 py-2 text-center">Rating</th>
+                                                <th className="px-3 py-2 text-left">Equivalent</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y">
+                                            {rated.map(({ sub, rating }, i) => (
+                                                <tr key={sub.id}>
+                                                    <td className="px-3 py-2 text-gray-500">{i + 1}</td>
+                                                    <td className="px-3 py-2">
+                                                        <span className="font-medium text-blue-600">
+                                                            {sub.objective?.code || `Objective #${sub.objective_id}`}
+                                                        </span>
+                                                        <span className="text-xs text-gray-500 ml-2">{sub.school_year || ''}</span>
+                                                    </td>
+                                                    <td className="px-3 py-2 text-center font-semibold">
+                                                        {rating}/5
+                                                    </td>
+                                                    <td className="px-3 py-2">{adjectival(rating)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                        <tfoot className="bg-green-50 font-semibold">
+                                            <tr>
+                                                <td className="px-3 py-2" colSpan={2}>Average</td>
+                                                <td className="px-3 py-2 text-center">{avg.toFixed(2)}/5</td>
+                                                <td className="px-3 py-2">{adjectival(avg)}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                                <p className="text-xs text-gray-500">
+                                    Rater: <span className="font-medium">{auth.user.name}</span>
+                                    {positionLabel(auth.user) ? ` — ${positionLabel(auth.user)}` : ''}
+                                </p>
+                            </div>
+                        );
+                    })()}
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsConfirmSubmitOpen(false)} disabled={isSubmitting}>
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={confirmSubmit}
+                            disabled={isSubmitting}
+                            className="bg-green-600 hover:bg-green-700"
+                        >
+                            <Save className="h-4 w-4 mr-2" />
+                            {isSubmitting ? 'Submitting…' : 'Confirm & Submit'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

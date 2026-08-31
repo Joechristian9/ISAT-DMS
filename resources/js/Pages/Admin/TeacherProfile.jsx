@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import { 
     ArrowLeft, Edit, User, Mail, Phone, MapPin, Building, IdCard, Briefcase, 
@@ -41,8 +41,39 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export default function TeacherProfile({ teacher, ipcrfStats, promotions, questionnaires, signedIpcrfs, recentActivity, objectives, kras }) {
+export default function TeacherProfile({ teacher, ipcrfStats, promotions, questionnaires, signedIpcrfs, recentActivity, objectives, kras, positions = [] }) {
     const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+    const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+
+    const profileDefaults = () => ({
+        name: teacher.name || '',
+        email: teacher.email || '',
+        department: teacher.department || '',
+        teacher_status: teacher.teacher_status || teacher.teacher_type || '',
+        career_stage: teacher.career_stage || '',
+        school_campus: teacher.school_campus || '',
+        level: teacher.level || '',
+        date_hired: teacher.date_hired ? String(teacher.date_hired).slice(0, 10) : '',
+        years_of_service: teacher.years_of_service ?? '',
+        current_position_id: teacher.current_position_id ? String(teacher.current_position_id) : '',
+    });
+
+    const editForm = useForm(profileDefaults());
+
+    const openEditProfile = () => {
+        editForm.clearErrors();
+        editForm.setData(profileDefaults());
+        setIsEditProfileOpen(true);
+    };
+
+    const handleUpdateProfile = (e) => {
+        e.preventDefault();
+        editForm.put(route('admin.teachers.update', teacher.id), {
+            preserveScroll: true,
+            onSuccess: () => setIsEditProfileOpen(false),
+        });
+    };
+
     const [isAddObjectiveModalOpen, setIsAddObjectiveModalOpen] = useState(false);
     const [isEditObjectiveModalOpen, setIsEditObjectiveModalOpen] = useState(false);
     const [selectedObjective, setSelectedObjective] = useState(null);
@@ -74,8 +105,14 @@ export default function TeacherProfile({ teacher, ipcrfStats, promotions, questi
     };
 
     const getYearsOfService = () => {
-        if (!teacher.date_hired) return 'N/A';
-        const years = new Date().getFullYear() - new Date(teacher.date_hired).getFullYear();
+        // Manual value wins; otherwise derive from date hired; default 0.
+        let years = teacher.years_of_service;
+        if (years === null || years === undefined || years === '') {
+            years = teacher.date_hired
+                ? new Date().getFullYear() - new Date(teacher.date_hired).getFullYear()
+                : 0;
+        }
+        years = Number(years) || 0;
         return `${years} year${years !== 1 ? 's' : ''}`;
     };
 
@@ -249,7 +286,7 @@ export default function TeacherProfile({ teacher, ipcrfStats, promotions, questi
                                             </div>
                                         </div>
                                         <Button
-                                            onClick={() => router.get(route('admin.teachers.index'))}
+                                            onClick={openEditProfile}
                                             className="bg-green-600 hover:bg-green-700"
                                         >
                                             <Edit className="h-4 w-4 mr-2" />
@@ -369,10 +406,18 @@ export default function TeacherProfile({ teacher, ipcrfStats, promotions, questi
                                             <span className="text-gray-900 font-semibold">{teacher.school_campus || 'N/A'}</span>
                                         </div>
                                         <div className="flex justify-between items-center pb-3 border-b">
+                                            <span className="text-gray-600 font-medium">Level</span>
+                                            <span className="text-gray-900 font-semibold">{teacher.level || 'N/A'}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center pb-3 border-b">
                                             <span className="text-gray-600 font-medium">Date Hired</span>
                                             <span className="text-gray-900 font-semibold">
                                                 {teacher.date_hired ? new Date(teacher.date_hired).toLocaleDateString() : 'N/A'}
                                             </span>
+                                        </div>
+                                        <div className="flex justify-between items-center pb-3 border-b">
+                                            <span className="text-gray-600 font-medium">Years of Service</span>
+                                            <span className="text-gray-900 font-semibold">{getYearsOfService()}</span>
                                         </div>
                                         {teacher.address && (
                                             <div className="flex justify-between items-start pb-3">
@@ -661,6 +706,210 @@ export default function TeacherProfile({ teacher, ipcrfStats, promotions, questi
                     </div>
                 </div>
             </SidebarInset>
+
+            {/* Edit Profile Modal */}
+            <Dialog open={isEditProfileOpen} onOpenChange={setIsEditProfileOpen}>
+                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Edit className="h-5 w-5 text-green-600" />
+                            Edit Profile
+                        </DialogTitle>
+                        <DialogDescription>Update {teacher.name}'s details and professional information.</DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleUpdateProfile}>
+                        <div className="space-y-4 py-2">
+                            <div className="space-y-1">
+                                <Label htmlFor="ep_name">Full Name</Label>
+                                <Input
+                                    id="ep_name"
+                                    value={editForm.data.name}
+                                    onChange={(e) => editForm.setData('name', e.target.value)}
+                                    className={editForm.errors.name ? 'border-red-500' : ''}
+                                />
+                                {editForm.errors.name && (
+                                    <p className="text-xs text-red-600">{editForm.errors.name}</p>
+                                )}
+                            </div>
+                            <div className="space-y-1">
+                                <Label htmlFor="ep_email">Email</Label>
+                                <Input
+                                    id="ep_email"
+                                    type="email"
+                                    value={editForm.data.email}
+                                    onChange={(e) => editForm.setData('email', e.target.value)}
+                                    className={editForm.errors.email ? 'border-red-500' : ''}
+                                />
+                                {editForm.errors.email && (
+                                    <p className="text-xs text-red-600">{editForm.errors.email}</p>
+                                )}
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <Label htmlFor="ep_department">Department</Label>
+                                    <Select
+                                        value={editForm.data.department}
+                                        onValueChange={(value) => editForm.setData('department', value)}
+                                    >
+                                        <SelectTrigger id="ep_department" className={editForm.errors.department ? 'border-red-500' : ''}>
+                                            <SelectValue placeholder="Select department" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Acad">Acad</SelectItem>
+                                            <SelectItem value="Tech-Pro">Tech-Pro</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    {editForm.errors.department && (
+                                        <p className="text-xs text-red-600">{editForm.errors.department}</p>
+                                    )}
+                                </div>
+                                <div className="space-y-1">
+                                    <Label htmlFor="ep_status">Status</Label>
+                                    <Select
+                                        value={editForm.data.teacher_status}
+                                        onValueChange={(value) => editForm.setData('teacher_status', value)}
+                                    >
+                                        <SelectTrigger id="ep_status" className={editForm.errors.teacher_status ? 'border-red-500' : ''}>
+                                            <SelectValue placeholder="Select status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Permanent">Permanent</SelectItem>
+                                            <SelectItem value="Provisioning">Provisioning</SelectItem>
+                                            <SelectItem value="Volunteer/COS">Volunteer/COS</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    {editForm.errors.teacher_status && (
+                                        <p className="text-xs text-red-600">{editForm.errors.teacher_status}</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="pt-2 border-t">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">Professional Details</p>
+
+                                <div className="space-y-1">
+                                    <Label htmlFor="ep_position">Current Position</Label>
+                                    <Select
+                                        value={editForm.data.current_position_id || 'none'}
+                                        onValueChange={(value) => editForm.setData('current_position_id', value === 'none' ? '' : value)}
+                                    >
+                                        <SelectTrigger id="ep_position" className={editForm.errors.current_position_id ? 'border-red-500' : ''}>
+                                            <SelectValue placeholder="Select position" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">None</SelectItem>
+                                            {positions.map((pos) => (
+                                                <SelectItem key={pos.id} value={String(pos.id)}>{pos.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {editForm.errors.current_position_id && (
+                                        <p className="text-xs text-red-600">{editForm.errors.current_position_id}</p>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3 mt-3">
+                                    <div className="space-y-1">
+                                        <Label htmlFor="ep_career_stage">Career Stage</Label>
+                                        <Select
+                                            value={editForm.data.career_stage || 'none'}
+                                            onValueChange={(value) => editForm.setData('career_stage', value === 'none' ? '' : value)}
+                                        >
+                                            <SelectTrigger id="ep_career_stage" className={editForm.errors.career_stage ? 'border-red-500' : ''}>
+                                                <SelectValue placeholder="Select stage" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">None</SelectItem>
+                                                <SelectItem value="Beginning Towards Proficient">Beginning Towards Proficient</SelectItem>
+                                                <SelectItem value="Highly Proficient">Highly Proficient</SelectItem>
+                                                <SelectItem value="Distinguished">Distinguished</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        {editForm.errors.career_stage && (
+                                            <p className="text-xs text-red-600">{editForm.errors.career_stage}</p>
+                                        )}
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="ep_date_hired">Date Hired</Label>
+                                        <Input
+                                            id="ep_date_hired"
+                                            type="date"
+                                            value={editForm.data.date_hired}
+                                            onChange={(e) => editForm.setData('date_hired', e.target.value)}
+                                            className={editForm.errors.date_hired ? 'border-red-500' : ''}
+                                        />
+                                        {editForm.errors.date_hired && (
+                                            <p className="text-xs text-red-600">{editForm.errors.date_hired}</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1 mt-3">
+                                    <Label htmlFor="ep_years_of_service">Years of Service</Label>
+                                    <Input
+                                        id="ep_years_of_service"
+                                        type="number"
+                                        min="0"
+                                        max="80"
+                                        value={editForm.data.years_of_service}
+                                        onChange={(e) => editForm.setData('years_of_service', e.target.value)}
+                                        placeholder="Leave blank to derive from Date Hired"
+                                        className={editForm.errors.years_of_service ? 'border-red-500' : ''}
+                                    />
+                                    {editForm.errors.years_of_service && (
+                                        <p className="text-xs text-red-600">{editForm.errors.years_of_service}</p>
+                                    )}
+                                    <p className="text-[11px] text-gray-400">Blank = auto-calculated from Date Hired.</p>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3 mt-3">
+                                    <div className="space-y-1">
+                                        <Label htmlFor="ep_school_campus">School / Campus</Label>
+                                        <Input
+                                            id="ep_school_campus"
+                                            value={editForm.data.school_campus}
+                                            onChange={(e) => editForm.setData('school_campus', e.target.value)}
+                                            placeholder="e.g. ISAT-MAIN"
+                                            className={editForm.errors.school_campus ? 'border-red-500' : ''}
+                                        />
+                                        {editForm.errors.school_campus && (
+                                            <p className="text-xs text-red-600">{editForm.errors.school_campus}</p>
+                                        )}
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="ep_level">Level</Label>
+                                        <Select
+                                            value={editForm.data.level || 'none'}
+                                            onValueChange={(value) => editForm.setData('level', value === 'none' ? '' : value)}
+                                        >
+                                            <SelectTrigger id="ep_level" className={editForm.errors.level ? 'border-red-500' : ''}>
+                                                <SelectValue placeholder="Select level" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">Not set</SelectItem>
+                                                <SelectItem value="JHS">JHS</SelectItem>
+                                                <SelectItem value="SHS">SHS</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        {editForm.errors.level && (
+                                            <p className="text-xs text-red-600">{editForm.errors.level}</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setIsEditProfileOpen(false)}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" className="bg-green-600 hover:bg-green-700" disabled={editForm.processing}>
+                                <Save className="h-4 w-4 mr-2" />
+                                Save Changes
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
 
             {/* Add Objective Modal */}
             <Dialog open={isAddObjectiveModalOpen} onOpenChange={setIsAddObjectiveModalOpen}>

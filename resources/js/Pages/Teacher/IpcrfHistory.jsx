@@ -1,11 +1,82 @@
 import { Head } from '@inertiajs/react';
-import { History, TrendingUp, FileText, Award, Calendar, Star, Download, Info, XCircle } from 'lucide-react';
+import { History, TrendingUp, FileText, Award, Calendar, Star, Download, Info, XCircle, ClipboardList } from 'lucide-react';
+import { toast } from 'sonner';
 import TeacherLayout from '@/Layouts/TeacherLayout';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
+import { generateIpcrfOfficialForm } from '@/lib/ipcrfOfficialForm';
 
 export default function IpcrfHistory({ historyData, user }) {
     const [showInfoModal, setShowInfoModal] = useState(false);
+    const [generatingYear, setGeneratingYear] = useState(null);
+
+    // Job title: division JSON position_title, then role label.
+    const positionLabel = (u) => {
+        if (!u) return '';
+        try {
+            const d = typeof u.division === 'string' ? JSON.parse(u.division) : u.division;
+            if (d?.position_title) return d.position_title;
+        } catch (e) { /* not JSON */ }
+        return u.position || '';
+    };
+
+    const generateSummary = async (record) => {
+        // Prefer the rater's saved KRA breakdown; otherwise rebuild from rated MOVs.
+        let kraGroups = (record.rating?.kra_details || [])
+            .map((kra) => ({
+                domain: kra.kra_name || 'Key Result Area',
+                objectives: (kra.objectives || []).map((obj) => ({
+                    description: obj.objective_description || obj.objective_code || 'Objective',
+                    weight: null,
+                    rating: Number(obj.rating) || 0,
+                })),
+            }))
+            .filter((g) => g.objectives.length > 0);
+
+        if (kraGroups.length === 0) {
+            kraGroups = (record.mov_groups || [])
+                .map((g) => ({
+                    domain: g.domain,
+                    objectives: (g.objectives || []).map((o) => ({
+                        description: o.description || o.code || 'Objective',
+                        weight: o.weight,
+                        rating: Number(o.rating) || 0,
+                    })),
+                }))
+                .filter((g) => g.objectives.length > 0);
+        }
+
+        if (kraGroups.length === 0) {
+            toast.error(`No rated objectives to summarise for SY ${record.school_year}.`);
+            return;
+        }
+
+        try {
+            setGeneratingYear(record.school_year);
+            await generateIpcrfOfficialForm({
+                employee: {
+                    name: user.name || '',
+                    position: positionLabel(user) || 'No Position',
+                    division: 'ISABELA SCHOOL OF ARTS AND TRADES - Ilagan Campus',
+                },
+                rater: {
+                    name: record.rating?.rater?.name || '',
+                    position: positionLabel(record.rating?.rater),
+                },
+                ratingPeriod: record.school_year,
+                dateOfReview: record.rating?.submitted_at ? new Date(record.rating.submitted_at) : new Date(),
+                kraGroups,
+                numericalRating: record.rating?.numerical_rating != null ? Number(record.rating.numerical_rating) : null,
+                fileName: `IPCRF_Part1_${(user.name || 'teacher').replace(/\s+/g, '_')}_${record.school_year}.pdf`,
+            });
+            toast.success('IPCRF Part 1 summary generated!');
+        } catch (e) {
+            console.error(e);
+            toast.error('Failed to generate summary: ' + e.message);
+        } finally {
+            setGeneratingYear(null);
+        }
+    };
     
     const getPerformanceColor = (level) => {
         const colors = {
@@ -100,11 +171,24 @@ export default function IpcrfHistory({ historyData, user }) {
                                             </div>
                                         </div>
 
-                                        {record.rating && (
-                                            <div className={`px-6 py-3 rounded-xl border-2 font-bold text-lg ${getPerformanceColor(record.rating.performance_level)}`}>
-                                                {record.rating.performance_level}
-                                            </div>
-                                        )}
+                                        <div className="flex items-center gap-3">
+                                            {(record.rating || (record.mov_groups && record.mov_groups.length > 0)) && (
+                                                <Button
+                                                    onClick={() => generateSummary(record)}
+                                                    disabled={generatingYear === record.school_year}
+                                                    variant="outline"
+                                                    className="border-green-600 text-green-700 hover:bg-green-50"
+                                                >
+                                                    <ClipboardList className="h-4 w-4 mr-2" />
+                                                    {generatingYear === record.school_year ? 'Generating…' : 'Generate Ratings Summary'}
+                                                </Button>
+                                            )}
+                                            {record.rating && (
+                                                <div className={`px-6 py-3 rounded-xl border-2 font-bold text-lg ${getPerformanceColor(record.rating.performance_level)}`}>
+                                                    {record.rating.performance_level}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
 
                                     {/* Rating Information */}

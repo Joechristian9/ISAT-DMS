@@ -20,6 +20,39 @@ class IpcrfConfigurationController extends Controller
         $this->auditLogService = $auditLogService;
     }
 
+    /**
+     * Position tiers the current user may configure.
+     *   Principal (super-admin) -> every tier (Teacher I ... Master Teacher V)
+     *   Master Teacher (admin)   -> Teacher tiers only; MT tiers are Principal-only
+     */
+    private function allowedTiers(): array
+    {
+        if (auth()->user()->hasRole('super-admin')) {
+            return IpcrfConfiguration::POSITION_TIERS;
+        }
+
+        return array_values(array_filter(
+            IpcrfConfiguration::POSITION_TIERS,
+            fn ($tier) => ! str_starts_with($tier, 'MT'),
+        ));
+    }
+
+    /**
+     * Block a Master Teacher from touching a Master-Teacher-tier configuration.
+     * Returns a redirect response when denied, otherwise null.
+     */
+    private function denyIfTierNotAllowed(?string $tier)
+    {
+        if ($tier && ! in_array($tier, $this->allowedTiers(), true)) {
+            return redirect()->back()->with(
+                'error',
+                'Only the Principal can manage configurations for the ' . $tier . ' position tier.'
+            );
+        }
+
+        return null;
+    }
+
     public function index(): Response
     {
         // Get all configurations with their custom KRAs and objectives
@@ -49,7 +82,9 @@ class IpcrfConfigurationController extends Controller
             'configurations' => $configurations,
             'currentYear' => date('Y'),
             'defaultKras' => $kras,
-            'positionTiers' => IpcrfConfiguration::POSITION_TIERS,
+            // Only the tiers this user may create/edit a configuration for.
+            'positionTiers' => $this->allowedTiers(),
+            'canManageAllTiers' => auth()->user()->hasRole('super-admin'),
         ]);
     }
 
@@ -59,7 +94,7 @@ class IpcrfConfigurationController extends Controller
             'school_year' => 'required|string',
             'position_tier' => [
                 'required',
-                Rule::in(IpcrfConfiguration::POSITION_TIERS),
+                Rule::in($this->allowedTiers()),
                 Rule::unique('ipcrf_configurations', 'position_tier')
                     ->where(fn ($query) => $query->where('school_year', $request->input('school_year'))),
             ],
@@ -82,6 +117,7 @@ class IpcrfConfigurationController extends Controller
             'notes' => 'nullable|string|max:500',
         ], [
             'position_tier.required' => 'Please choose the position tier this configuration applies to.',
+            'position_tier.in' => 'Only the Principal can create a configuration for a Master Teacher (MT) position tier.',
             'position_tier.unique' => 'A configuration for this position tier already exists for the selected school year.',
         ]);
 
@@ -128,11 +164,15 @@ class IpcrfConfigurationController extends Controller
             return redirect()->back()->with('error', 'This configuration is locked and cannot be modified.');
         }
 
+        if ($denied = $this->denyIfTierNotAllowed($configuration->position_tier)) {
+            return $denied;
+        }
+
         $validated = $request->validate([
             'school_year' => 'required|string',
             'position_tier' => [
                 'required',
-                Rule::in(IpcrfConfiguration::POSITION_TIERS),
+                Rule::in($this->allowedTiers()),
                 Rule::unique('ipcrf_configurations', 'position_tier')
                     ->where(fn ($query) => $query->where('school_year', $request->input('school_year')))
                     ->ignore($configuration->id),
@@ -156,6 +196,7 @@ class IpcrfConfigurationController extends Controller
             'notes' => 'nullable|string|max:500',
         ], [
             'position_tier.required' => 'Please choose the position tier this configuration applies to.',
+            'position_tier.in' => 'Only the Principal can create a configuration for a Master Teacher (MT) position tier.',
             'position_tier.unique' => 'A configuration for this position tier already exists for the selected school year.',
         ]);
 
@@ -202,6 +243,10 @@ class IpcrfConfigurationController extends Controller
             return redirect()->back()->with('error', 'This configuration is locked and cannot be deleted.');
         }
 
+        if ($denied = $this->denyIfTierNotAllowed($configuration->position_tier)) {
+            return $denied;
+        }
+
         // Check if configuration is being used by teachers of this tier
         $submissionsQuery = TeacherSubmission::where('school_year', $configuration->school_year);
 
@@ -238,6 +283,10 @@ class IpcrfConfigurationController extends Controller
 
     public function toggleActive(IpcrfConfiguration $configuration)
     {
+        if ($denied = $this->denyIfTierNotAllowed($configuration->position_tier)) {
+            return $denied;
+        }
+
         // Only one active configuration per position tier, so activating this one
         // deactivates the other configurations targeting the same tier.
         if (!$configuration->is_active) {
@@ -267,6 +316,10 @@ class IpcrfConfigurationController extends Controller
 
     public function toggleLock(IpcrfConfiguration $configuration)
     {
+        if ($denied = $this->denyIfTierNotAllowed($configuration->position_tier)) {
+            return $denied;
+        }
+
         $configuration->update(['is_locked' => !$configuration->is_locked]);
 
         // Log the action

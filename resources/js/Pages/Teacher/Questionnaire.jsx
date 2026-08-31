@@ -14,10 +14,13 @@ export default function Questionnaire({ questionnaire, schoolYear, user }) {
     const confirmRef = useRef(null);
     const isSubmitted = questionnaire?.status === 'submitted';
 
+    // Auto-fill Sex from the teacher's profile gender when it exists.
+    const profileGender = user?.gender || '';
+
     const { data, setData, post, processing, errors, transform } = useForm({
         school_year: schoolYear,
         name: questionnaire?.name || user.name || '',
-        sex: questionnaire?.sex || '',
+        sex: profileGender || questionnaire?.sex || '',
         years_of_service: questionnaire?.years_of_service || '',
         last_ipcr_rating: questionnaire?.last_ipcr_rating || '',
         responses: questionnaire?.responses || {},
@@ -245,15 +248,27 @@ export default function Questionnaire({ questionnaire, schoolYear, user }) {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">Sex</label>
-                                    <select
-                                        value={data.sex}
-                                        onChange={(e) => setData('sex', e.target.value)}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    >
-                                        <option value="">Select</option>
-                                        <option value="Male">Male</option>
-                                        <option value="Female">Female</option>
-                                    </select>
+                                    {profileGender ? (
+                                        <>
+                                            <input
+                                                type="text"
+                                                value={data.sex}
+                                                readOnly
+                                                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
+                                            />
+                                            <p className="mt-1 text-xs text-gray-400">Auto-filled from your profile</p>
+                                        </>
+                                    ) : (
+                                        <select
+                                            value={data.sex}
+                                            onChange={(e) => setData('sex', e.target.value)}
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        >
+                                            <option value="">Select</option>
+                                            <option value="Male">Male</option>
+                                            <option value="Female">Female</option>
+                                        </select>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">Number of years in the service</label>

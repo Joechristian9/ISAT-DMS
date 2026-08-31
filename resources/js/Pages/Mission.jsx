@@ -22,7 +22,7 @@ export default function Mission() {
                                 </div>
                                 <div>
                                     <h1 className="text-xl font-bold text-gray-900 group-hover:text-green-600 transition-colors duration-300">ISAT e-TRACES</h1>
-                                    <p className="text-xs text-gray-600">Document Management System</p>
+                                    <p className="text-xs text-gray-600">E-Management Portal</p>
                                 </div>
                             </Link>
                             

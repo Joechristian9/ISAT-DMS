@@ -40,7 +40,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Toaster } from "@/components/ui/sonner";
 import { Search, UserPlus, Pencil, Trash2, KeyRound, ShieldCheck } from 'lucide-react';
 
 const emptyForm = { name: '', email: '', password: '', role: 'admin', is_active: true };
@@ -58,11 +57,6 @@ export default function UserManagement({ users, roleOptions, filters, flash }) {
     const [selected, setSelected] = useState(null);
     const [resetPassword, setResetPassword] = useState('');
     const [processing, setProcessing] = useState(false);
-
-    useEffect(() => {
-        if (flash?.success) toast.success(flash.success);
-        if (flash?.error) toast.error(flash.error);
-    }, [flash]);
 
     const applyFilters = (next = {}) => {
         router.get(route('admin.users.index'), {
@@ -157,7 +151,6 @@ export default function UserManagement({ users, roleOptions, filters, flash }) {
     return (
         <>
             <Head title="User Management" />
-            <Toaster />
             <SidebarProvider>
                 <AppSidebar />
                 <SidebarInset>

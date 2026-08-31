@@ -134,6 +134,13 @@ class TeacherManagementController extends Controller
             'email' => 'required|email|unique:users,email,' . $teacher->id,
             'department' => 'nullable|string|max:255',
             'teacher_status' => 'nullable|string|max:255',
+            // Professional details - all optional, only persisted when sent
+            'career_stage' => 'nullable|string|max:255',
+            'school_campus' => 'nullable|string|max:255',
+            'level' => 'nullable|in:JHS,SHS',
+            'date_hired' => 'nullable|date',
+            'years_of_service' => 'nullable|integer|min:0|max:80',
+            'current_position_id' => 'nullable|integer|exists:positions,id',
         ], [
             'name.required' => 'Teacher name is required.',
             'name.max' => 'Teacher name cannot exceed 255 characters.',
@@ -142,25 +149,70 @@ class TeacherManagementController extends Controller
             'email.unique' => 'This email address is already registered to another user.',
             'department.max' => 'Department name cannot exceed 255 characters.',
             'teacher_status.max' => 'Teacher status cannot exceed 255 characters.',
+            'current_position_id.exists' => 'The selected position is invalid.',
         ]);
 
         // Capitalize first letter of name
         $validated['name'] = ucwords(strtolower($validated['name']));
 
-        $oldValues = $teacher->only(['name', 'email', 'division', 'teacher_type']);
-        
-        // Get existing division data
-        $divisionData = json_decode($teacher->division, true) ?? [];
-        
-        // Update only department, keep position_range and career_stage
-        $divisionData['department'] = $validated['department'] ?? null;
-        
-        $teacher->update([
+        $oldValues = $teacher->only([
+            'name', 'email', 'division', 'teacher_type', 'teacher_status',
+            'department', 'career_stage', 'school_campus', 'level', 'date_hired',
+            'years_of_service', 'current_position_id',
+        ]);
+
+        $divisionData = json_decode($teacher->division, true) ?: [];
+
+        $updates = [
             'name' => $validated['name'],
             'email' => $validated['email'],
-            'division' => json_encode($divisionData),
-            'teacher_type' => $validated['teacher_status'] ?? null,
-        ]);
+        ];
+
+        // Each professional-detail field is written only when its key is present
+        // in the request, so editing from one form never wipes another's fields.
+        if ($request->has('teacher_status')) {
+            $status = $validated['teacher_status'] ?: null;
+            $updates['teacher_status'] = $status; // column the profile page reads
+            $updates['teacher_type'] = $status;   // legacy column kept in sync
+        }
+
+        if ($request->has('department')) {
+            $department = $validated['department'] ?: null;
+            $updates['department'] = $department;
+            $divisionData['department'] = $department;
+        }
+
+        if ($request->has('career_stage')) {
+            $careerStage = $validated['career_stage'] ?: null;
+            $updates['career_stage'] = $careerStage;
+            $divisionData['career_stage'] = $careerStage;
+        }
+
+        if ($request->has('school_campus')) {
+            $updates['school_campus'] = $validated['school_campus'] ?: null;
+        }
+
+        if ($request->has('level')) {
+            $level = $validated['level'] ?: null;
+            $updates['level'] = $level;
+            $divisionData['level'] = $level;
+        }
+
+        if ($request->has('date_hired')) {
+            $updates['date_hired'] = $validated['date_hired'] ?: null;
+        }
+
+        if ($request->has('years_of_service')) {
+            $updates['years_of_service'] = $validated['years_of_service'] ?? null;
+        }
+
+        if ($request->has('current_position_id')) {
+            $updates['current_position_id'] = $validated['current_position_id'] ?: null;
+        }
+
+        $updates['division'] = json_encode($divisionData);
+
+        $teacher->update($updates);
 
         // Log the action
         AuditLogService::logTeacherUpdated($teacher->id, $teacher->name, $oldValues, $validated);
@@ -369,6 +421,7 @@ class TeacherManagementController extends Controller
             'recentActivity' => $recentActivity,
             'objectives' => $objectives,
             'kras' => $kras,
+            'positions' => Position::orderBy('order')->get(['id', 'name']),
         ]);
     }
 
