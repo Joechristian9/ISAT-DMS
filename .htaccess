@@ -1,27 +1,21 @@
 # Shared-hosting front door.
 #
 # On Hostinger the domain's document root is the PROJECT root (public_html/),
-# not Laravel's public/ folder. This file forwards every incoming request into
-# public/, where the real front controller (index.php) and Laravel's own
-# rewrite rules (public/.htaccess) live.
+# not Laravel's public/ folder. This forwards every request into public/, where
+# index.php and Laravel's own rewrite rules (public/.htaccess) live.
 #
-# It is committed to the repository on purpose: the Git deployment overwrites
-# public_html/ with the repo contents, so an untracked .htaccess here gets
-# deleted on every deploy and the site 403s / directory-lists until it is
-# restored. Keeping it in Git makes the deploy self-contained.
+# Committed to the repo on purpose: the Git deployment overwrites public_html/,
+# so an untracked .htaccess here is deleted on every deploy and the site 403s
+# until it is restored by hand. Keeping it in Git makes the deploy self-contained.
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # Leave requests that already target public/ alone (prevents rewrite loops).
+    # Serve existing files/dirs inside public/ directly; route everything else
+    # (including "/") to the front controller.
     RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^$ public/index.php [L]
 
-    # Forward everything else into public/. public/.htaccess then routes it to
-    # index.php (or serves the static file / built asset directly).
+    RewriteCond %{REQUEST_URI} !^/public/
     RewriteRule ^(.*)$ public/$1 [L]
-</IfModule>
-
-# If mod_rewrite is unavailable, at least send bare directory hits to the app.
-<IfModule mod_dir.c>
-    DirectoryIndex public/index.php
 </IfModule>
