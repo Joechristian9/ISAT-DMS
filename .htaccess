@@ -1,21 +1,10 @@
-# Shared-hosting front door.
+# Shared-hosting front door: the domain's document root is this folder
+# (public_html/), but Laravel's front controller lives in public/. Forward every
+# request into public/, where index.php and public/.htaccess take over.
 #
-# On Hostinger the domain's document root is the PROJECT root (public_html/),
-# not Laravel's public/ folder. This forwards every request into public/, where
-# index.php and Laravel's own rewrite rules (public/.htaccess) live.
-#
-# Committed to the repo on purpose: the Git deployment overwrites public_html/,
-# so an untracked .htaccess here is deleted on every deploy and the site 403s
-# until it is restored by hand. Keeping it in Git makes the deploy self-contained.
+# Committed on purpose so the Git deployment can't leave the site without it.
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
-
-    # Serve existing files/dirs inside public/ directly; route everything else
-    # (including "/") to the front controller.
-    RewriteCond %{REQUEST_URI} !^/public/
-    RewriteRule ^$ public/index.php [L]
-
-    RewriteCond %{REQUEST_URI} !^/public/
     RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>
