@@ -58,7 +58,7 @@ export function AppSidebar({
     name: auth?.user?.name ?? "User",
     email: auth?.user?.email ?? "",
     avatar: auth?.user?.profile_picture ?? "/pictures/isat.tmp",
-    roleLabel: auth?.roleLabel ?? roleLabel(roles),
+    roleLabel: auth?.roleLabel ?? roleLabel(roles, auth?.user),
   }
 
   return (

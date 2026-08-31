@@ -27,6 +27,15 @@ use Spatie\Permission\Models\Role;
  */
 class TeacherSeeder extends Seeder
 {
+    /**
+     * Dual-role accounts: teacher panel + super-admin panel. Keyed by generated
+     * @isat.edu.ph email. The value overrides the division "position_title" so
+     * roleLabel() shows it instead of "Principal".
+     */
+    private const DUAL_ROLE = [
+        'prince.ariel.r.alvaro@isat.edu.ph' => 'Administrator',
+    ];
+
     /** [name, position|null] */
     private array $teachers = [
         ['ALVARO, PRINCE ARIEL R.', 'Teacher II'],
@@ -82,6 +91,7 @@ class TeacherSeeder extends Seeder
     public function run(): void
     {
         Role::firstOrCreate(['name' => 'teacher']);
+        Role::firstOrCreate(['name' => 'super-admin']);
 
         $removed = 0;
         foreach ($this->removeEmails as $email) {
@@ -106,6 +116,9 @@ class TeacherSeeder extends Seeder
             }
             [$range, $careerStage] = $this->tierFor($position);
 
+            $adminTitle = self::DUAL_ROLE[$email] ?? null;
+            $roles = $adminTitle ? ['teacher', 'super-admin'] : ['teacher'];
+
             $user->name = $fullName;
             $user->gender = null;
             $user->career_stage = $careerStage;
@@ -116,14 +129,16 @@ class TeacherSeeder extends Seeder
             $user->level = null;
             $user->is_active = true;
             $user->division = json_encode([
-                'position_title' => $position,
+                // Administrator keeps his Teacher tier for the teacher panel;
+                // position_title is what roleLabel() reads for the admin panel.
+                'position_title' => $adminTitle ?? $position,
                 'position_range' => $range,
                 'career_stage' => $careerStage,
                 'level' => null,
                 'department' => null,
             ]);
             $user->save();
-            $user->syncRoles(['teacher']);
+            $user->syncRoles($roles);
 
             $count++;
         }

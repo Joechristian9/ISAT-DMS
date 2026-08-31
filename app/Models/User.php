@@ -73,13 +73,24 @@ class User extends Authenticatable
     /**
      * Human-facing label for this account's role.
      * The spatie role keys stay as-is; only the wording changes.
-     *   super-admin -> Principal
+     *   super-admin -> Principal (or the division position_title, e.g. "Administrator")
      *   admin       -> Master Teacher
      *   teacher     -> Teacher
      */
     public function roleLabel(): string
     {
         if ($this->hasRole('super-admin')) {
+            // A dual-role account (super-admin + teacher, e.g. the Administrator)
+            // is labelled by its division position_title rather than "Principal".
+            if ($this->hasRole('teacher')) {
+                $division = json_decode((string) $this->division, true);
+                $title = is_array($division) ? ($division['position_title'] ?? null) : null;
+
+                if ($title && ! str_contains($title, 'Principal')) {
+                    return $title;
+                }
+            }
+
             return 'Principal';
         }
         if ($this->hasRole('admin')) {
